@@ -15,6 +15,7 @@ const NEW_ROOT_TRANSITIONS = new Set(['typed', 'generated', 'auto_bookmark', 'ke
 export function decideNavigation(i: NavInput, s: Settings): NavAction {
   if (i.transitionType === 'reload' || i.qualifiers.includes('forward_back') || i.hashOnly) return 'ignore';
   if (i.fromHistoryState && !i.sameOrigin) return 'ignore';
+  if (i.qualifiers.includes('client_redirect')) return 'update-node';
   if (!i.fromHistoryState && NEW_ROOT_TRANSITIONS.has(i.transitionType)) return 'new-root';
   return s.sameTabAddsNode ? 'add-child' : 'update-node';
 }

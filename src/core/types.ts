@@ -23,6 +23,8 @@ export interface Group {
 export interface TreeState {
   nodes: Record<NodeId, TreeNode>;
   groups: Record<string, Group>;
+  /** Set on browser start; cleared once the post-restart wipe of hollow nodes has run. */
+  pendingWipe?: boolean;
 }
 
 export interface Settings {

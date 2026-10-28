@@ -33,6 +33,10 @@ describe('decideNavigation', () => {
     expect(decideNavigation(nav({}), { ...DEFAULT_SETTINGS, sameTabAddsNode: false })).toBe('update-node');
   });
 
+  test('a client redirect updates the current node rather than adding one', () => {
+    expect(decideNavigation(nav({ qualifiers: ['client_redirect'] }), DEFAULT_SETTINGS)).toBe('update-node');
+  });
+
   test('same-origin history-state route changes count, cross-origin ones do not', () => {
     expect(decideNavigation(nav({ fromHistoryState: true, sameOrigin: true }), DEFAULT_SETTINGS)).toBe('add-child');
     expect(decideNavigation(nav({ fromHistoryState: true, sameOrigin: false }), DEFAULT_SETTINGS)).toBe('ignore');

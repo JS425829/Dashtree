@@ -59,7 +59,9 @@ export function reuseOrAddChild(
   p: Omit<NewNode, 'parentId'>,
   now = Date.now(),
 ): { state: TreeState; id: NodeId } {
-  const existing = childrenOf(s, parentId).find((n) => stripHash(n.url) === stripHash(p.url));
+  const existing = childrenOf(s, parentId).find(
+    (n) => stripHash(n.url) === stripHash(p.url) && (n.tabId === null || n.tabId === p.tabId),
+  );
   if (existing) return { state: patchNode(s, existing.id, { tabId: p.tabId }), id: existing.id };
   return addNode(s, { ...p, parentId }, now);
 }
@@ -93,7 +95,7 @@ export function deleteNodes(s: TreeState, ids: NodeId[], withChildren: boolean):
     const nodeIds = g.nodeIds.filter((id) => !removed.has(id));
     if (nodeIds.length) groups[g.id] = { ...g, nodeIds };
   }
-  return { nodes, groups };
+  return { ...s, nodes, groups };
 }
 
 export function closeTab(s: TreeState, tabId: number, settings: Settings): TreeState {

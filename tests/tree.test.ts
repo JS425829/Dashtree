@@ -38,6 +38,15 @@ describe('adding and reusing nodes', () => {
     expect(again.state.nodes[first.id].tabId).toBe(7);
   });
 
+  test('reuse does not steal a child that another open tab is showing', () => {
+    const root = add(EMPTY_STATE, null, 'https://x/', 1);
+    const first = reuseOrAddChild(root.state, root.id, { url: 'https://x/a', tabId: 2 });
+    const second = reuseOrAddChild(first.state, root.id, { url: 'https://x/a', tabId: 3 });
+    expect(second.id).not.toBe(first.id);
+    expect(second.state.nodes[first.id].tabId).toBe(2);
+    expect(second.state.nodes[second.id].tabId).toBe(3);
+  });
+
   test('nodeForTab finds the node showing a tab and updateNode patches it', () => {
     const { s, b } = chain();
     expect(nodeForTab(s, 2)?.id).toBe(b);
@@ -87,6 +96,11 @@ describe('deleting', () => {
     const s2 = deleteNodes(s, [b], true);
     expect(Object.keys(s2.nodes)).toEqual([a]);
     expect(s2.nodes[c]).toBeUndefined();
+  });
+
+  test('deleting keeps other state fields such as pendingWipe', () => {
+    const { s, b } = chain();
+    expect(deleteNodes({ ...s, pendingWipe: true }, [b], false).pendingWipe).toBe(true);
   });
 
   test('deleting a node removes it from groups, and empty groups disappear', () => {
