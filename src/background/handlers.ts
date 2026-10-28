@@ -89,11 +89,22 @@ function applyCommit(s: TreeState, settings: Settings, e: CommitEvent): TreeStat
       return s;
     case 'update-node':
       return updateNode(s, current.id, { url: e.url });
-    case 'add-child':
+    case 'add-child': {
+      const hollowed = updateNode(s, current.id, { tabId: null });
+      const key = routeKey(e.url);
+      const revisitsChild = Object.values(s.nodes).some(
+        (n) => n.parentId === current.id && routeKey(n.url) === key && (n.tabId === null || n.tabId === e.tabId),
+      );
+      // going back to a page earlier on this same path moves the tab onto it instead of adding a duplicate
+      const earlier = revisitsChild
+        ? undefined
+        : ancestorIds(s, current.id).map((id) => s.nodes[id]).find((n) => n.tabId === null && routeKey(n.url) === key);
+      if (earlier) return updateNode(hollowed, earlier.id, { tabId: e.tabId });
       // single-page navigation changes neither the favicon nor always the title, so the child starts with its parent's
-      return reuseOrAddChild(updateNode(s, current.id, { tabId: null }), current.id, {
+      return reuseOrAddChild(hollowed, current.id, {
         url: e.url, tabId: e.tabId, title: current.title, favIconUrl: current.favIconUrl,
       }).state;
+    }
     case 'new-root':
       return attachOrAddRoot(updateNode(s, current.id, { tabId: null }), e.tabId, e.url);
   }
