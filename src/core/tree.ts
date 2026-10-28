@@ -151,6 +151,8 @@ export function hollowDescendants(s: TreeState, id: NodeId): NodeId[] {
 export interface ClearOptions {
   /** The Clear button also removes the hollow children of favourites; the post-restart wipe keeps them. */
   clearFavouriteChildren?: boolean;
+  /** Only remove nodes created before this time (the post-restart wipe leaves this session's nodes alone). */
+  createdBefore?: number;
 }
 
 export function protectedIds(s: TreeState, opts: ClearOptions = {}): Set<NodeId> {
@@ -167,7 +169,7 @@ export function protectedIds(s: TreeState, opts: ClearOptions = {}): Set<NodeId>
 export function clearHollow(s: TreeState, opts: ClearOptions = {}): TreeState {
   const keep = protectedIds(s, opts);
   const doomed = Object.values(s.nodes)
-    .filter((n) => n.tabId === null && !keep.has(n.id))
+    .filter((n) => n.tabId === null && !keep.has(n.id) && (opts.createdBefore === undefined || n.createdAt < opts.createdBefore))
     .map((n) => n.id);
   return deleteNodes(s, doomed, false);
 }

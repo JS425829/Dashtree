@@ -1,3 +1,4 @@
+import { onBrowserStart, onSessionStart } from '../src/background/handlers';
 import { createStore, type Store } from '../src/background/store';
 import { DEFAULT_SETTINGS, EMPTY_STATE, type Settings, type TreeState } from '../src/core/types';
 
@@ -28,4 +29,10 @@ export function memoryStore(overrides: Partial<Settings> = {}, latencyMs = 0): M
 export function tabIdsAreUnique(s: TreeState): boolean {
   const ids = Object.values(s.nodes).map((n) => n.tabId).filter((t) => t !== null);
   return new Set(ids).size === ids.length;
+}
+
+/** A genuine browser restart: the new session starts (tabs reconciled), then the browser-start event arms the wipe. */
+export async function restart(m: MemoryStore, openTabs: { tabId: number; url: string }[] = []): Promise<void> {
+  await onSessionStart(m.store, openTabs);
+  await onBrowserStart(m.store);
 }

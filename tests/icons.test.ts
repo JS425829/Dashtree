@@ -70,8 +70,8 @@ describe('extension icons', () => {
     expect(html).toMatch(/<h1>\s*<svg class="logo"/);
   });
 
-  test('the build copies the icons next to the manifest', () => {
-    expect(readFileSync('build.mjs', 'utf8')).toContain("cpSync('icons', 'dist/icons'");
+  test('the build copies the icons next to the manifest, for every browser it builds', () => {
+    expect(readFileSync('build.mjs', 'utf8')).toContain("cpSync('icons', `${outdir}/icons`");
   });
 
   test('even the 16px icon keeps a visible white glyph', () => {

@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
-  activateNode, onCommitted, onStartup, onTabCreated, onTabRemoved, onTabUpdated,
+  activateNode, onCommitted, onTabCreated, onTabRemoved, onTabUpdated,
 } from '../src/background/handlers';
 import { addNode, nodeForTab, setFavourite } from '../src/core/tree';
-import { memoryStore, tabIdsAreUnique, type MemoryStore } from './helpers';
+import { memoryStore, restart, tabIdsAreUnique, type MemoryStore } from './helpers';
 
 const commit = (m: MemoryStore, tabId: number, url: string, extra: Partial<Parameters<typeof onCommitted>[1]> = {}) =>
   onCommitted(m.store, { tabId, url, transitionType: 'link', qualifiers: [], fromHistoryState: false, ...extra });
@@ -85,8 +85,8 @@ describe('Important: restart ordering and timing', () => {
   afterEach(() => { vi.useRealTimers(); });
 
   const seedTwo = (m: MemoryStore) => {
-    const keep = addNode(m.state(), { parentId: null, url: 'https://x/open', tabId: 1 });
-    const gone = addNode(keep.state, { parentId: null, url: 'https://x/gone', tabId: 2 });
+    const keep = addNode(m.state(), { parentId: null, url: 'https://x/open', tabId: 1 }, 1);
+    const gone = addNode(keep.state, { parentId: null, url: 'https://x/gone', tabId: 2 }, 1);
     m.set(gone.state);
     return { keep: keep.id, gone: gone.id };
   };
@@ -94,7 +94,7 @@ describe('Important: restart ordering and timing', () => {
   test('startup adopts tabs that are already open by URL', async () => {
     const m = memoryStore();
     const ids = seedTwo(m);
-    await onStartup(m.store, [{ tabId: 5, url: 'https://x/open' }]);
+    await restart(m, [{ tabId: 5, url: 'https://x/open' }]);
     expect(m.state().nodes[ids.keep].tabId).toBe(5);
     expect(m.state().nodes[ids.gone].tabId).toBeNull();
   });
@@ -102,7 +102,7 @@ describe('Important: restart ordering and timing', () => {
   test('a tab created during the restore window with a matching URL re-attaches (lazy-restored tab)', async () => {
     const m = memoryStore();
     const ids = seedTwo(m);
-    await onStartup(m.store);
+    await restart(m);
     await onTabCreated(m.store, { tabId: 9, url: 'https://x/open' });
     expect(m.state().nodes[ids.keep].tabId).toBe(9);
     expect(Object.keys(m.state().nodes)).toHaveLength(2);
@@ -111,7 +111,7 @@ describe('Important: restart ordering and timing', () => {
   test('the wipe is skipped if no tab opens within ten minutes of startup', async () => {
     const m = memoryStore();
     const ids = seedTwo(m);
-    await onStartup(m.store);
+    await restart(m);
     await vi.advanceTimersByTimeAsync(11 * 60 * 1000);
     await onTabCreated(m.store, { tabId: 9 });
     await vi.advanceTimersByTimeAsync(5000);

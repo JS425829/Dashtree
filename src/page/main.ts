@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, EMPTY_STATE, type NodeId, type Settings, type TreeState } from '../core/types';
+import { ext } from '../shared/api';
 import { CHANGED, type Command, type StateReply } from '../shared/messages';
 import { attachInteractions, editNote } from './interact';
 import { appearanceClasses, layoutOptsFor } from './appearance';
@@ -38,7 +39,7 @@ export const ctx: PageContext = {
   focusGroup: null,
 };
 
-export const send = <T = void>(c: Command): Promise<T> => chrome.runtime.sendMessage(c);
+export const send = <T = void>(c: Command): Promise<T> => ext.runtime.sendMessage(c);
 
 const canvas = document.getElementById('canvas')!;
 const empty = document.getElementById('empty')!;
@@ -135,7 +136,7 @@ canvas.addEventListener('click', (e) => {
 
 attachInteractions(canvas, () => ctx, send, draw);
 
-chrome.runtime.onMessage.addListener((m) => {
+ext.runtime.onMessage.addListener((m) => {
   if (m?.type === CHANGED) void refresh();
 });
 

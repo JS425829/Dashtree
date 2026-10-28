@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:chromium": "node build.mjs chromium",
+    "build:firefox": "node build.mjs firefox",
+    "lint:firefox": "web-ext lint --source-dir dist-firefox",
+    "package": "node build.mjs && web-ext build --source-dir dist --artifacts-dir packages --filename histo-tree-chromium-{version}.zip --overwrite-dest && web-ext build --source-dir dist-firefox --artifacts-dir packages --filename histo-tree-firefox-{version}.zip --overwrite-dest",
     "icons": "node tools/make-icons.mjs",
     "test": "vitest run"
   },
@@ -15,6 +19,7 @@
     "fake-indexeddb": "^6.2.6",
     "jsdom": "^30.1.3",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "web-ext": "^10.8.0"
   }
 }

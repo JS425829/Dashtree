@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
-  RESTORE_GRACE_MS, activateNode, handleCommand, onCommitted, onStartup, onTabCreated, onTabRemoved, onTabUpdated,
+  RESTORE_GRACE_MS, activateNode, handleCommand, onCommitted, onTabCreated, onTabRemoved, onTabUpdated,
 } from '../src/background/handlers';
 import { addNode, nodeForTab, setFavourite } from '../src/core/tree';
-import { memoryStore, type MemoryStore } from './helpers';
+import { memoryStore, restart, type MemoryStore } from './helpers';
 
 const commit = (m: MemoryStore, tabId: number, url: string, extra: Partial<Parameters<typeof onCommitted>[1]> = {}) =>
   onCommitted(m.store, { tabId, url, transitionType: 'link', qualifiers: [], fromHistoryState: false, ...extra });
@@ -145,9 +145,9 @@ describe('restart', () => {
 
   function seed(m: MemoryStore) {
     let s = m.state();
-    const fav = addNode(s, { parentId: null, url: 'https://x/fav', tabId: 1 }); s = setFavourite(fav.state, fav.id, true);
-    const gone = addNode(s, { parentId: null, url: 'https://x/gone', tabId: 2 }); s = gone.state;
-    const back = addNode(s, { parentId: null, url: 'https://x/back', tabId: 3 }); s = back.state;
+    const fav = addNode(s, { parentId: null, url: 'https://x/fav', tabId: 1 }, 1); s = setFavourite(fav.state, fav.id, true);
+    const gone = addNode(s, { parentId: null, url: 'https://x/gone', tabId: 2 }, 1); s = gone.state;
+    const back = addNode(s, { parentId: null, url: 'https://x/back', tabId: 3 }, 1); s = back.state;
     m.set(s);
     return { fav: fav.id, gone: gone.id, back: back.id };
   }
@@ -155,14 +155,14 @@ describe('restart', () => {
   test('startup hollows every node', async () => {
     const m = memoryStore();
     seed(m);
-    await onStartup(m.store);
+    await restart(m);
     expect(Object.values(m.state().nodes).every((n) => n.tabId === null)).toBe(true);
   });
 
   test('after the grace period the first new tab wipes unprotected hollow nodes, keeping favourites and re-attached tabs', async () => {
     const m = memoryStore();
     const ids = seed(m);
-    await onStartup(m.store);
+    await restart(m);
     await onTabCreated(m.store, { tabId: 9 });
     await commit(m, 9, 'https://x/back', { transitionType: 'typed' });
     await vi.advanceTimersByTimeAsync(RESTORE_GRACE_MS);
@@ -175,7 +175,7 @@ describe('restart', () => {
   test('nothing is wiped when the setting is off', async () => {
     const m = memoryStore({ wipeHollowAfterRestart: false });
     const ids = seed(m);
-    await onStartup(m.store);
+    await restart(m);
     await onTabCreated(m.store, { tabId: 9 });
     await vi.advanceTimersByTimeAsync(RESTORE_GRACE_MS);
     expect(m.state().nodes[ids.gone]).toBeDefined();
@@ -184,7 +184,7 @@ describe('restart', () => {
   test('the wipe happens only once', async () => {
     const m = memoryStore();
     seed(m);
-    await onStartup(m.store);
+    await restart(m);
     await onTabCreated(m.store, { tabId: 9 });
     await vi.advanceTimersByTimeAsync(RESTORE_GRACE_MS);
     const later = addNode(m.state(), { parentId: null, url: 'https://x/later', tabId: null });

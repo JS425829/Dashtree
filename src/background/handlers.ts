@@ -28,6 +28,11 @@ export interface TabApi {
   openTab(url: string): Promise<number>;
 }
 
+/** The tab already showing `url` (the tree page), if any. Compared as plain text, so it works with any browser's address prefix. */
+export function findTab<T extends { url?: string }>(tabs: T[], url: string): T | undefined {
+  return tabs.find((t) => t.url === url);
+}
+
 const wipeTimers = new WeakMap<Store, ReturnType<typeof setTimeout>>();
 
 const sameOrigin = (a: string, b: string) => {
@@ -117,26 +122,45 @@ function armWipe(store: Store): void {
   if (wipeTimers.has(store)) return;
   wipeTimers.set(store, setTimeout(() => {
     wipeTimers.delete(store);
-    void store.mutate((st) => (st.pendingWipe ? { ...clearHollow(st), pendingWipe: false } : st));
+    // only nodes from before this session began: anything made since is this session's own history
+    void store.mutate((st) => (st.pendingWipe ? { ...clearHollow(st, { createdBefore: st.startedAt }), pendingWipe: false } : st));
   }, RESTORE_GRACE_MS));
 }
 
-/** Runs at the start of each browser session. `openTabs` are tabs already open, adopted by URL. */
-export async function onStartup(store: Store, openTabs: { tabId: number; url: string }[] = []): Promise<void> {
+/**
+ * Runs once whenever the extension's session starts: a browser start, but also loading, reloading or updating the
+ * extension. Saved tab ids may be stale, so a node keeps its tab only if that tab still exists showing the same page;
+ * the rest go hollow. Open tabs no node holds are then adopted by URL. This never wipes anything.
+ */
+export async function onSessionStart(store: Store, openTabs: { tabId: number; url: string }[] = []): Promise<void> {
   await store.mutate((s, settings) => {
+    const live = new Map(openTabs.map((t) => [t.tabId, t.url]));
     let next: TreeState = {
       ...s,
-      nodes: Object.fromEntries(Object.entries(s.nodes).map(([id, n]) => [id, { ...n, tabId: null }])),
-      pendingWipe: settings.wipeHollowAfterRestart,
+      nodes: Object.fromEntries(
+        Object.entries(s.nodes).map(([id, n]) => [id, n.tabId !== null && live.get(n.tabId) === n.url ? n : { ...n, tabId: null }]),
+      ),
       startedAt: Date.now(),
     };
+    const held = new Set(Object.values(next.nodes).map((n) => n.tabId).filter((t) => t !== null));
     for (const t of openTabs) {
-      if (!isTrackableUrl(t.url) || isIgnoredUrl(t.url, settings.ignoredSites)) continue;
+      if (held.has(t.tabId) || !isTrackableUrl(t.url) || isIgnoredUrl(t.url, settings.ignoredSites)) continue;
       const match = findHollowByUrl(next, t.url);
-      if (match) next = updateNode(next, match.id, { tabId: t.tabId });
+      if (match) {
+        next = updateNode(next, match.id, { tabId: t.tabId });
+        held.add(t.tabId);
+      }
     }
     return next;
   });
+}
+
+/**
+ * Runs only when the browser itself starts (the `runtime.onStartup` event), not when the extension is reloaded.
+ * Arms the wipe of the previous session's hollow nodes, if the setting is on.
+ */
+export async function onBrowserStart(store: Store): Promise<void> {
+  await store.mutate((s, settings) => ({ ...s, pendingWipe: settings.wipeHollowAfterRestart }));
 }
 
 export async function onTabCreated(store: Store, e: { tabId: number; openerTabId?: number; url?: string }): Promise<void> {

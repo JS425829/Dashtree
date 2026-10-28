@@ -1,3 +1,4 @@
+import { ext } from '../shared/api';
 import { DEFAULT_SETTINGS, EMPTY_STATE, type Settings, type TreeState } from '../core/types';
 
 // The extension is now called Histo-tree, but this name is where saved trees live: changing it would orphan them.
@@ -36,10 +37,10 @@ export async function saveState(state: TreeState): Promise<void> {
 }
 
 export async function loadSettings(): Promise<Settings> {
-  const { settings } = await chrome.storage.local.get('settings');
+  const { settings } = await ext.storage.local.get('settings');
   return { ...DEFAULT_SETTINGS, ...(settings ?? {}) };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
-  await chrome.storage.local.set({ settings });
+  await ext.storage.local.set({ settings });
 }

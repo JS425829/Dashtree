@@ -1,40 +1,42 @@
+import { ext, type NavDetails } from '../shared/api';
 import { loadSettings, loadState, saveSettings, saveState } from '../storage/db';
 import { CHANGED, type Command, type StateReply } from '../shared/messages';
 import {
-  activateNode, handleCommand, onCommitted, onStartup, onTabCreated, onTabRemoved, onTabUpdated, type TabApi,
+  activateNode, findTab, handleCommand, onBrowserStart, onCommitted, onSessionStart, onTabCreated, onTabRemoved, onTabUpdated,
+  type TabApi,
 } from './handlers';
 import { createStore } from './store';
 
 const broadcastChanged = () => {
-  chrome.runtime.sendMessage({ type: CHANGED }).catch(() => {});
+  ext.runtime.sendMessage({ type: CHANGED }).catch(() => {});
 };
 
 const store = createStore({ load: loadState, save: saveState, settings: loadSettings, onChange: broadcastChanged });
 
 const tabApi: TabApi = {
   async focusTab(tabId) {
-    const tab = await chrome.tabs.update(tabId, { active: true });
+    const tab = await ext.tabs.update(tabId, { active: true });
     if (!tab) throw new Error(`No tab with id ${tabId}`);
-    await chrome.windows.update(tab.windowId, { focused: true });
+    await ext.windows.update(tab.windowId, { focused: true });
   },
   async openTab(url) {
-    return (await chrome.tabs.create({ url })).id!;
+    return (await ext.tabs.create({ url })).id!;
   },
 };
 
 const log = (e: unknown) => console.error('[histo-tree]', e);
 
 /**
- * Once per browser session (chrome.storage.session is cleared when the browser closes or the extension reloads)
- * reset every node to hollow and adopt tabs that are already open. Every handler waits for this, so no event can be
- * applied against last session's stale tab ids.
+ * Once per session (ext.storage.session is cleared when the browser closes or the extension reloads) reconcile the
+ * saved tab ids with the tabs that are really open. Every handler waits for this, so no event can be applied against
+ * stale tab ids. This runs on extension reloads too, so it must never wipe anything: that is `runtime.onStartup`'s job.
  */
 const ready: Promise<void> = (async () => {
-  const { sessionStarted } = await chrome.storage.session.get('sessionStarted');
+  const { sessionStarted } = await ext.storage.session.get('sessionStarted');
   if (sessionStarted) return;
-  await chrome.storage.session.set({ sessionStarted: true });
-  const tabs = await chrome.tabs.query({});
-  await onStartup(
+  await ext.storage.session.set({ sessionStarted: true });
+  const tabs = await ext.tabs.query({});
+  await onSessionStart(
     store,
     tabs.filter((t) => t.id !== undefined && t.url).map((t) => ({ tabId: t.id!, url: t.url! })),
   );
@@ -42,14 +44,18 @@ const ready: Promise<void> = (async () => {
 
 const after = (fn: () => Promise<unknown>) => void ready.then(fn).catch(log);
 
+// a genuine browser start (not an extension reload): arm the wipe of the previous session's hollow nodes
+ext.runtime.onStartup.addListener(() => after(() => onBrowserStart(store)));
+
 async function openTreePage(): Promise<void> {
-  const url = chrome.runtime.getURL('index.html');
-  const [existing] = await chrome.tabs.query({ url });
+  const url = ext.runtime.getURL('index.html');
+  // list the tabs and compare, rather than query by URL pattern: patterns for extension pages differ between browsers
+  const existing = findTab(await ext.tabs.query({}), url);
   if (existing?.id !== undefined) {
-    await chrome.tabs.update(existing.id, { active: true });
-    await chrome.windows.update(existing.windowId, { focused: true });
+    await ext.tabs.update(existing.id, { active: true });
+    await ext.windows.update(existing.windowId, { focused: true });
   } else {
-    await chrome.tabs.create({ url });
+    await ext.tabs.create({ url });
   }
 }
 
@@ -70,34 +76,33 @@ async function route(c: Command): Promise<StateReply | undefined> {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg: Command | { type: typeof CHANGED }, _sender, sendResponse) => {
+ext.runtime.onMessage.addListener((msg: Command | { type: typeof CHANGED }, _sender, sendResponse) => {
   if (msg.type === CHANGED) return false;
   route(msg).then(sendResponse, (e) => sendResponse({ error: String(e) }));
   return true;
 });
 
-chrome.action.onClicked.addListener(() => void openTreePage().catch(log));
+ext.action.onClicked.addListener(() => void openTreePage().catch(log));
 
-chrome.tabs.onCreated.addListener((tab) => {
+ext.tabs.onCreated.addListener((tab) => {
   if (tab.id === undefined) return;
   const e = { tabId: tab.id, openerTabId: tab.openerTabId, url: tab.url || tab.pendingUrl };
   after(() => onTabCreated(store, e));
 });
-chrome.tabs.onUpdated.addListener((tabId, info) => {
+ext.tabs.onUpdated.addListener((tabId, info) => {
   if (info.title !== undefined || info.favIconUrl !== undefined) {
     after(() => onTabUpdated(store, tabId, { title: info.title, favIconUrl: info.favIconUrl }));
   }
 });
-chrome.tabs.onRemoved.addListener((tabId) => after(() => onTabRemoved(store, tabId)));
+ext.tabs.onRemoved.addListener((tabId) => after(() => onTabRemoved(store, tabId)));
 
-type NavDetails = chrome.webNavigation.WebNavigationTransitionCallbackDetails;
 const route2 = (d: NavDetails, fromHistoryState: boolean) => {
   if (d.frameId !== 0) return;
   after(() => onCommitted(store, {
     tabId: d.tabId, url: d.url, transitionType: d.transitionType, qualifiers: d.transitionQualifiers, fromHistoryState,
   }));
 };
-chrome.webNavigation.onCommitted.addListener((d) => route2(d, false));
+ext.webNavigation.onCommitted.addListener((d) => route2(d, false));
 // single-page apps change the page without a real navigation; Azure Portal keeps its route in the #fragment
-chrome.webNavigation.onHistoryStateUpdated.addListener((d) => route2(d, true));
-chrome.webNavigation.onReferenceFragmentUpdated.addListener((d) => route2(d, true));
+ext.webNavigation.onHistoryStateUpdated.addListener((d) => route2(d, true));
+ext.webNavigation.onReferenceFragmentUpdated.addListener((d) => route2(d, true));

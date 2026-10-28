@@ -1,4 +1,7 @@
 node_modules
 dist
+dist-firefox
+packages
+web-ext-artifacts
 .superpowers
 .tools
