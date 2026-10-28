@@ -3,7 +3,10 @@ import { CHANGED, type Command, type StateReply } from '../shared/messages';
 import { attachInteractions } from './interact';
 import { layoutForest, type LayoutResult } from './layout';
 import { renderForest } from './render';
+import { applyCachedTheme, applyTheme } from './theme';
 import { matchIds, renderTopBar } from './topbar';
+
+applyCachedTheme();
 
 export interface PageContext {
   state: TreeState;
@@ -54,6 +57,7 @@ export async function refresh(): Promise<void> {
   if (!reply || reply.error || !reply.state || request !== latestRequest) return;
   ctx.state = reply.state;
   ctx.settings = reply.settings;
+  applyTheme(ctx.settings.theme);
   topbar.update(ctx.settings);
   applyQuery();
 }

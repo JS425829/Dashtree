@@ -1,4 +1,4 @@
-import { decideNavigation, isTrackableUrl, routeKey } from '../core/rules';
+import { decideNavigation, isIgnoredUrl, isTrackableUrl, routeKey } from '../core/rules';
 import {
   addNode, addToGroup, ancestorIds, clearHollow, closeTab, createGroup, deleteNodes, descendantIds, nodeForTab,
   reuseOrAddChild, setFavourite, setNote, updateNode,
@@ -65,7 +65,7 @@ function applyBackForward(s: TreeState, current: TreeNode, e: CommitEvent): Tree
 function applyCommit(s: TreeState, settings: Settings, e: CommitEvent): TreeState {
   const current = nodeForTab(s, e.tabId);
 
-  if (!isTrackableUrl(e.url)) {
+  if (!isTrackableUrl(e.url) || isIgnoredUrl(e.url, settings.ignoredSites)) {
     if (!current) return s;
     return current.url === '' ? deleteNodes(s, [current.id], false) : updateNode(s, current.id, { tabId: null });
   }
@@ -117,7 +117,7 @@ export async function onStartup(store: Store, openTabs: { tabId: number; url: st
       startedAt: Date.now(),
     };
     for (const t of openTabs) {
-      if (!isTrackableUrl(t.url)) continue;
+      if (!isTrackableUrl(t.url) || isIgnoredUrl(t.url, settings.ignoredSites)) continue;
       const match = findHollowByUrl(next, t.url);
       if (match) next = updateNode(next, match.id, { tabId: t.tabId });
     }
@@ -127,7 +127,7 @@ export async function onStartup(store: Store, openTabs: { tabId: number; url: st
 
 export async function onTabCreated(store: Store, e: { tabId: number; openerTabId?: number; url?: string }): Promise<void> {
   // everything happens inside the queue so a following onCommitted for this tab cannot overtake it
-  await store.mutate((s) => {
+  await store.mutate((s, settings) => {
     let next = s;
     if (s.pendingWipe) {
       if (Date.now() - (s.startedAt ?? 0) > WIPE_WINDOW_MS) next = { ...s, pendingWipe: false };
@@ -138,7 +138,7 @@ export async function onTabCreated(store: Store, e: { tabId: number; openerTabId
       const opener = nodeForTab(next, e.openerTabId);
       return opener ? addNode(next, { parentId: opener.id, url: '', tabId: e.tabId }).state : next;
     }
-    if (e.url && isTrackableUrl(e.url) && inRestoreWindow(next)) {
+    if (e.url && isTrackableUrl(e.url) && !isIgnoredUrl(e.url, settings.ignoredSites) && inRestoreWindow(next)) {
       const hollow = findHollowByUrl(next, e.url);
       if (hollow) return updateNode(next, hollow.id, { tabId: e.tabId });
     }

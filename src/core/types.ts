@@ -29,16 +29,23 @@ export interface TreeState {
   startedAt?: number;
 }
 
+export type Theme = 'system' | 'light' | 'dark';
+
 export interface Settings {
   sameTabAddsNode: boolean;
   wipeHollowAfterRestart: boolean;
   hollowOnTabClose: boolean;
+  theme: Theme;
+  /** Host names that are never recorded; each also covers its subdomains. */
+  ignoredSites: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   sameTabAddsNode: true,
   wipeHollowAfterRestart: true,
   hollowOnTabClose: true,
+  theme: 'system',
+  ignoredSites: [],
 };
 
 export const EMPTY_STATE: TreeState = { nodes: {}, groups: {} };
