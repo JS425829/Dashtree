@@ -113,6 +113,7 @@
   .menu button { display:block; width:100%; min-height:36px; text-align:left; background:none; border:0; padding:8px 12px; border-radius:10px; font-size:14px; cursor:pointer; }
   .menu button:hover, .menu button:focus-visible { background:var(--bg); }
   .menu hr { border:0; border-top:1px solid var(--line); opacity:.5; margin:6px 4px; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:20; max-width:min(560px,calc(100vw - 40px)); background:var(--text); color:var(--bg); padding:12px 20px; border-radius:16px; font-weight:600; box-shadow:var(--shadow-lg); }
   .popover { position:absolute; right:36px; top:76px; z-index:10; max-width:min(440px,calc(100vw - 40px)); background:var(--card); border-radius:18px; padding:16px 18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-lg); }
   .popover label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
   .popover { max-height:calc(100vh - 100px); overflow-y:auto; width:min(440px,calc(100vw - 40px)); }

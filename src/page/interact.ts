@@ -1,8 +1,10 @@
+import { isIgnoredUrl, isTrackableUrl } from '../core/rules';
 import { hollowDescendants } from '../core/tree';
 import type { NodeId, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
 import type { LayoutOpts, LayoutResult } from './layout';
 import { showMenu, type MenuItem } from './menu';
+import { showToast } from './toast';
 
 export interface Rect {
   x1: number;
@@ -18,7 +20,23 @@ export interface InteractCtx {
   opts: LayoutOpts;
   /** The confirmBeforeDeleting setting. */
   confirmDelete: boolean;
+  /** The ignoredSites setting, so the menu can add to it. */
+  ignoredSites: string[];
   selected: Set<NodeId>;
+}
+
+/** The sites (once each, in order) that "Ignore" would add for these nodes: real sites not already covered. */
+export function ignoreCandidates(s: TreeState, ids: NodeId[], ignored: string[]): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    const url = s.nodes[id]?.url;
+    if (!url || !isTrackableUrl(url)) continue;
+    let host: string;
+    try { host = new URL(url).hostname.toLowerCase(); } catch { continue; }
+    if (!host || out.includes(host) || isIgnoredUrl(url, ignored)) continue;
+    out.push(host);
+  }
+  return out;
 }
 
 /** A single plain delete never asks; several nodes or delete-with-children ask when the setting is on. */
@@ -38,7 +56,7 @@ export function nodesInRect(layout: LayoutResult, nodeW: number, nodeH: number, 
     .map(([id]) => id);
 }
 
-function buildMenu(
+export function buildMenu(
   ids: NodeId[], c: InteractCtx, send: (cmd: Command) => unknown, changed: () => void,
 ): MenuItem[] {
   const del = (withChildren: boolean) => () => {
@@ -83,6 +101,17 @@ function buildMenu(
   });
   for (const g of Object.values(c.state.groups)) {
     items.push({ label: `Add to group: ${g.name}`, action: () => void send({ type: 'addToGroup', groupId: g.id, nodeIds: ids }) });
+  }
+
+  const hosts = ignoreCandidates(c.state, ids, c.ignoredSites);
+  if (hosts.length) {
+    items.push('separator', {
+      label: hosts.length === 1 ? `Ignore ${hosts[0]}` : `Ignore ${hosts.length} sites`,
+      action: () => {
+        void send({ type: 'setSettings', settings: { ignoredSites: [...c.ignoredSites, ...hosts] } });
+        showToast(`Ignoring ${hosts.join(', ')} from now on. Pages already in the tree stay; manage the list in Settings.`);
+      },
+    });
   }
   return items;
 }

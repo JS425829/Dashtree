@@ -15,6 +15,7 @@ export interface PageContext {
   layout: LayoutResult;
   opts: LayoutOpts;
   readonly confirmDelete: boolean;
+  readonly ignoredSites: string[];
   selected: Set<NodeId>;
   matches: Set<NodeId> | null;
 }
@@ -25,6 +26,7 @@ export const ctx: PageContext = {
   layout: layoutForest(EMPTY_STATE),
   opts: DEFAULT_LAYOUT,
   get confirmDelete() { return this.settings.confirmBeforeDeleting; },
+  get ignoredSites() { return this.settings.ignoredSites; },
   selected: new Set(),
   matches: null,
 };
