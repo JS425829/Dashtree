@@ -25,6 +25,7 @@ export function renderTopBar(
   const search = document.createElement('input');
   search.type = 'search';
   search.placeholder = 'Search tabs, URLs and notes…';
+  search.setAttribute('aria-label', 'Search tabs, URLs and notes');
   search.addEventListener('input', () => onQuery(search.value));
 
   const spacer = document.createElement('span');
@@ -41,8 +42,23 @@ export function renderTopBar(
   gear.textContent = 'Settings';
   const popover = document.createElement('div');
   popover.className = 'popover';
+  popover.id = 'settings-popover';
+  popover.setAttribute('role', 'dialog');
+  popover.setAttribute('aria-label', 'Settings');
   popover.hidden = true;
-  gear.addEventListener('click', () => { popover.hidden = !popover.hidden; });
+  gear.setAttribute('aria-expanded', 'false');
+  gear.setAttribute('aria-controls', popover.id);
+  const setOpen = (open: boolean) => {
+    popover.hidden = !open;
+    gear.setAttribute('aria-expanded', String(open));
+  };
+  gear.addEventListener('click', () => setOpen(Boolean(popover.hidden)));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popover.hidden) {
+      setOpen(false);
+      gear.focus();
+    }
+  });
 
   const boxes = new Map<keyof Settings, HTMLInputElement>();
   for (const [key, text] of SETTING_LABELS) {

@@ -14,7 +14,7 @@ export interface LayoutResult {
   height: number;
 }
 
-export const DEFAULT_LAYOUT: LayoutOpts = { nodeW: 180, nodeH: 36, gapX: 24, gapY: 48 };
+export const DEFAULT_LAYOUT: LayoutOpts = { nodeW: 210, nodeH: 36, gapX: 28, gapY: 52 };
 export const ROOT_GAP = 60;
 
 /** Tidy-tree layout: roots left to right, children centred under their parent, depth grows downward. */
