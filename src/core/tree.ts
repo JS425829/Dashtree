@@ -109,19 +109,24 @@ export function hollowDescendants(s: TreeState, id: NodeId): NodeId[] {
   return descendantIds(s, id).filter((d) => s.nodes[d].tabId === null);
 }
 
-export function protectedIds(s: TreeState): Set<NodeId> {
+export interface ClearOptions {
+  /** The Clear button also removes the hollow children of favourites; the post-restart wipe keeps them. */
+  clearFavouriteChildren?: boolean;
+}
+
+export function protectedIds(s: TreeState, opts: ClearOptions = {}): Set<NodeId> {
   const keep = new Set<NodeId>();
   for (const n of Object.values(s.nodes)) {
     if (!n.favourite) continue;
     keep.add(n.id);
     ancestorIds(s, n.id).forEach((a) => keep.add(a));
-    descendantIds(s, n.id).forEach((d) => keep.add(d));
+    if (!opts.clearFavouriteChildren) descendantIds(s, n.id).forEach((d) => keep.add(d));
   }
   return keep;
 }
 
-export function clearHollow(s: TreeState): TreeState {
-  const keep = protectedIds(s);
+export function clearHollow(s: TreeState, opts: ClearOptions = {}): TreeState {
+  const keep = protectedIds(s, opts);
   const doomed = Object.values(s.nodes)
     .filter((n) => n.tabId === null && !keep.has(n.id))
     .map((n) => n.id);

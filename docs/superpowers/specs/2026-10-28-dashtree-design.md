@@ -41,10 +41,10 @@ Edge tabs are normally a flat strip or a grouped list. Jude works across many re
 
 ## Persistence and restart
 
-- **Favourites do not auto-open.** Any node can be favourited. A favourited node is kept no matter what: it survives restarts, the post-restart wipe and "Clear hollow nodes", staying hollow when its tab is closed. Clicking it reopens it like any hollow node. To keep a favourited branch attached, its ancestors and its descendants are kept too (my guess; the ancestors stay as hollow nodes).
+- **Favourites do not auto-open.** Any node can be favourited. A favourited node is kept no matter what: it survives restarts, the post-restart wipe and "Clear hollow nodes", staying hollow when its tab is closed. Clicking it reopens it like any hollow node. To keep a favourited branch attached, its ancestors are kept too (my guess; the ancestors stay as hollow nodes). Its descendants are kept by the post-restart wipe, but the "Clear hollow nodes" button does remove a favourite's hollow children (decided by Jude).
 - After a restart, non-favourite trees remain visible as hollow nodes. **Once the user opens any tab, the non-favourite hollow nodes are wiped.** This is a setting and can be turned off (keep hollow nodes indefinitely).
 - Whether tabs restored by Edge's own session restore count as "the user opened a tab" is the builder's call (proposal: they count).
-- **Clear hollow nodes:** a button in the top bar that removes every hollow node except favourites and the ancestors and descendants kept with them.
+- **Clear hollow nodes:** a button in the top bar that removes every hollow node except favourites and their ancestors. Hollow children (descendants) of favourites are removed too; open tabs are never touched.
 
 ## The tree page (UI)
 

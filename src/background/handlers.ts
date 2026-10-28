@@ -203,7 +203,7 @@ export async function handleCommand(store: Store, c: Command): Promise<void> {
     case 'setNote':
       return store.mutate((s) => setNote(s, c.id, c.note));
     case 'clearHollow':
-      return store.mutate((s) => clearHollow(s));
+      return store.mutate((s) => clearHollow(s, { clearFavouriteChildren: true }));
     case 'createGroup':
       return store.mutate((s) => createGroup(s, c.name, c.colour, c.nodeIds).state);
     case 'addToGroup':

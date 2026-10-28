@@ -150,6 +150,35 @@ describe('hollow nodes, favourites and clearing', () => {
     expect(s2.nodes[b]).toBeDefined();
   });
 
+  test('the Clear button mode removes a favourite\'s hollow children but keeps the favourite and open children', () => {
+    const fav = add(EMPTY_STATE, null, 'https://x/fav', null);
+    const hollowKid = add(fav.state, fav.id, 'https://x/kid', null);
+    const openKid = add(hollowKid.state, fav.id, 'https://x/open-kid', 9);
+    const deep = add(openKid.state, hollowKid.id, 'https://x/deep', null);
+    const s = setFavourite(deep.state, fav.id, true);
+    const cleared = clearHollow(s, { clearFavouriteChildren: true });
+    expect(cleared.nodes[fav.id]).toBeDefined();
+    expect(cleared.nodes[openKid.id]).toBeDefined();
+    expect(cleared.nodes[hollowKid.id]).toBeUndefined();
+    expect(cleared.nodes[deep.id]).toBeUndefined();
+  });
+
+  test('without that option (the post-restart wipe) a favourite\'s hollow children are still kept', () => {
+    const fav = add(EMPTY_STATE, null, 'https://x/fav', null);
+    const kid = add(fav.state, fav.id, 'https://x/kid', null);
+    const s = setFavourite(kid.state, fav.id, true);
+    expect(clearHollow(s).nodes[kid.id]).toBeDefined();
+  });
+
+  test('clearing never removes a favourite that sits below another favourite', () => {
+    const top = add(EMPTY_STATE, null, 'https://x/top', null);
+    const inner = add(top.state, top.id, 'https://x/inner', null);
+    const s = setFavourite(setFavourite(inner.state, top.id, true), inner.id, true);
+    const cleared = clearHollow(s, { clearFavouriteChildren: true });
+    expect(cleared.nodes[top.id]).toBeDefined();
+    expect(cleared.nodes[inner.id]).toBeDefined();
+  });
+
   test('clearHollow of a hollow parent promotes its open child to a root', () => {
     const { s, a, b } = chain();
     const s2 = clearHollow(closeTab(s, 1, DEFAULT_SETTINGS));

@@ -241,6 +241,16 @@ describe('commands', () => {
     expect(m.state().nodes[id]).toBeUndefined();
   });
 
+  test('the clearHollow command removes hollow children of a favourite but keeps the favourite', async () => {
+    const m = memoryStore();
+    const fav = addNode(m.state(), { parentId: null, url: 'https://x/fav', tabId: null });
+    const kid = addNode(fav.state, { parentId: fav.id, url: 'https://x/kid', tabId: null });
+    m.set(setFavourite(kid.state, fav.id, true));
+    await handleCommand(m.store, { type: 'clearHollow' });
+    expect(m.state().nodes[fav.id]).toBeDefined();
+    expect(m.state().nodes[kid.id]).toBeUndefined();
+  });
+
   test('createGroup then addToGroup via commands', async () => {
     const m = memoryStore();
     await commit(m, 1, 'https://x/a', { transitionType: 'typed' });

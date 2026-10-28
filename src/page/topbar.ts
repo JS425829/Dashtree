@@ -72,9 +72,11 @@ export function renderTopBar(
 
   const clear = document.createElement('button');
   clear.textContent = 'Clear hollow nodes';
-  clear.title = 'Remove every hollow node except favourites (and the nodes kept with them)';
+  clear.title = 'Remove every hollow node except favourites. Hollow children of favourites are removed too.';
   clear.addEventListener('click', () => {
-    if (confirm('Remove all hollow nodes except favourites?')) void send({ type: 'clearHollow' });
+    if (confirm('Remove all hollow nodes except favourites themselves? Hollow children of favourites will be removed too.')) {
+      void send({ type: 'clearHollow' });
+    }
   });
 
   const gear = document.createElement('button');
