@@ -52,6 +52,12 @@ describe('url helpers', () => {
     expect(isTrackableUrl('https://portal.azure.com/#home')).toBe(true);
   });
 
+  test('routeKey keeps route-style fragments (Azure Portal) but drops plain anchors', async () => {
+    const { routeKey } = await import('../src/core/rules');
+    expect(routeKey('https://x/a#section-2')).toBe('https://x/a');
+    expect(routeKey('https://portal.azure.com/#view/HubsExtension/Browse')).toBe('https://portal.azure.com/#view/HubsExtension/Browse');
+  });
+
   test('stripHash drops the fragment', () => {
     expect(stripHash('https://x/a#b')).toBe('https://x/a');
   });

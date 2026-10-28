@@ -38,6 +38,15 @@ describe('adding and reusing nodes', () => {
     expect(again.state.nodes[first.id].tabId).toBe(7);
   });
 
+  test('different Portal route fragments are different children; the same route is reused', () => {
+    const root = add(EMPTY_STATE, null, 'https://portal.azure.com/', 1);
+    const a = reuseOrAddChild(root.state, root.id, { url: 'https://portal.azure.com/#view/A/x', tabId: null });
+    const b = reuseOrAddChild(a.state, root.id, { url: 'https://portal.azure.com/#view/B/y', tabId: null });
+    const a2 = reuseOrAddChild(b.state, root.id, { url: 'https://portal.azure.com/#view/A/x', tabId: null });
+    expect(b.id).not.toBe(a.id);
+    expect(a2.id).toBe(a.id);
+  });
+
   test('reuse does not steal a child that another open tab is showing', () => {
     const root = add(EMPTY_STATE, null, 'https://x/', 1);
     const first = reuseOrAddChild(root.state, root.id, { url: 'https://x/a', tabId: 2 });

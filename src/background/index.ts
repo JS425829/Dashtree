@@ -24,6 +24,24 @@ const tabApi: TabApi = {
 
 const log = (e: unknown) => console.error('[dashtree]', e);
 
+/**
+ * Once per browser session (chrome.storage.session is cleared when the browser closes or the extension reloads)
+ * reset every node to hollow and adopt tabs that are already open. Every handler waits for this, so no event can be
+ * applied against last session's stale tab ids.
+ */
+const ready: Promise<void> = (async () => {
+  const { sessionStarted } = await chrome.storage.session.get('sessionStarted');
+  if (sessionStarted) return;
+  await chrome.storage.session.set({ sessionStarted: true });
+  const tabs = await chrome.tabs.query({});
+  await onStartup(
+    store,
+    tabs.filter((t) => t.id !== undefined && t.url).map((t) => ({ tabId: t.id!, url: t.url! })),
+  );
+})().catch(log);
+
+const after = (fn: () => Promise<unknown>) => void ready.then(fn).catch(log);
+
 async function openTreePage(): Promise<void> {
   const url = chrome.runtime.getURL('index.html');
   const [existing] = await chrome.tabs.query({ url });
@@ -36,6 +54,7 @@ async function openTreePage(): Promise<void> {
 }
 
 async function route(c: Command): Promise<StateReply | undefined> {
+  await ready;
   switch (c.type) {
     case 'getState':
     case 'getSettings':
@@ -58,27 +77,27 @@ chrome.runtime.onMessage.addListener((msg: Command | { type: typeof CHANGED }, _
 });
 
 chrome.action.onClicked.addListener(() => void openTreePage().catch(log));
-chrome.runtime.onStartup.addListener(() => void onStartup(store).catch(log));
 
 chrome.tabs.onCreated.addListener((tab) => {
-  if (tab.id !== undefined) void onTabCreated(store, { tabId: tab.id, openerTabId: tab.openerTabId }).catch(log);
+  if (tab.id === undefined) return;
+  const e = { tabId: tab.id, openerTabId: tab.openerTabId, url: tab.url || tab.pendingUrl };
+  after(() => onTabCreated(store, e));
 });
 chrome.tabs.onUpdated.addListener((tabId, info) => {
   if (info.title !== undefined || info.favIconUrl !== undefined) {
-    void onTabUpdated(store, tabId, { title: info.title, favIconUrl: info.favIconUrl }).catch(log);
+    after(() => onTabUpdated(store, tabId, { title: info.title, favIconUrl: info.favIconUrl }));
   }
 });
-chrome.tabs.onRemoved.addListener((tabId) => void onTabRemoved(store, tabId).catch(log));
+chrome.tabs.onRemoved.addListener((tabId) => after(() => onTabRemoved(store, tabId)));
 
-chrome.webNavigation.onCommitted.addListener((d) => {
+type NavDetails = chrome.webNavigation.WebNavigationTransitionCallbackDetails;
+const route2 = (d: NavDetails, fromHistoryState: boolean) => {
   if (d.frameId !== 0) return;
-  void onCommitted(store, {
-    tabId: d.tabId, url: d.url, transitionType: d.transitionType, qualifiers: d.transitionQualifiers, fromHistoryState: false,
-  }).catch(log);
-});
-chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
-  if (d.frameId !== 0) return;
-  void onCommitted(store, {
-    tabId: d.tabId, url: d.url, transitionType: d.transitionType, qualifiers: d.transitionQualifiers, fromHistoryState: true,
-  }).catch(log);
-});
+  after(() => onCommitted(store, {
+    tabId: d.tabId, url: d.url, transitionType: d.transitionType, qualifiers: d.transitionQualifiers, fromHistoryState,
+  }));
+};
+chrome.webNavigation.onCommitted.addListener((d) => route2(d, false));
+// single-page apps change the page without a real navigation; Azure Portal keeps its route in the #fragment
+chrome.webNavigation.onHistoryStateUpdated.addListener((d) => route2(d, true));
+chrome.webNavigation.onReferenceFragmentUpdated.addListener((d) => route2(d, true));

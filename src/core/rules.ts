@@ -27,3 +27,13 @@ export function isTrackableUrl(url: string): boolean {
 export function stripHash(url: string): string {
   return url.split('#')[0];
 }
+
+/**
+ * Identity of a page for "same page?" checks. Single-page apps such as Azure Portal keep their route
+ * in the fragment (#view/..., #@tenant/resource/...), so a fragment containing '/' is part of the
+ * identity; plain in-page anchors (#section-2) are not.
+ */
+export function routeKey(url: string): string {
+  const i = url.indexOf('#');
+  return i >= 0 && url.slice(i).includes('/') ? url : stripHash(url);
+}

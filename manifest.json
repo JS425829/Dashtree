@@ -3,6 +3,7 @@
   "name": "Dashtree",
   "version": "0.1.0",
   "description": "See your tabs as a tree.",
+  "incognito": "not_allowed",
   "permissions": ["tabs", "webNavigation", "storage", "unlimitedStorage"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": { "default_title": "Open Dashtree" },

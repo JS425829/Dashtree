@@ -45,8 +45,13 @@ function applyQuery(): void {
   draw();
 }
 
+let latestRequest = 0;
+
 export async function refresh(): Promise<void> {
-  const reply = await send<StateReply>({ type: 'getState' });
+  const request = ++latestRequest;
+  const reply = await send<StateReply & { error?: string }>({ type: 'getState' });
+  // ignore errors from the worker and replies that were overtaken by a newer request
+  if (!reply || reply.error || !reply.state || request !== latestRequest) return;
   ctx.state = reply.state;
   ctx.settings = reply.settings;
   topbar.update(ctx.settings);

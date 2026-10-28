@@ -1,4 +1,4 @@
-import { stripHash } from './rules';
+import { routeKey } from './rules';
 import type { Group, NodeId, Settings, TreeNode, TreeState } from './types';
 
 export interface NewNode {
@@ -13,7 +13,7 @@ function childrenOf(s: TreeState, id: NodeId | null): TreeNode[] {
   return Object.values(s.nodes).filter((n) => n.parentId === id);
 }
 
-function descendantIds(s: TreeState, id: NodeId): NodeId[] {
+export function descendantIds(s: TreeState, id: NodeId): NodeId[] {
   const out: NodeId[] = [];
   const stack = childrenOf(s, id);
   while (stack.length) {
@@ -24,7 +24,7 @@ function descendantIds(s: TreeState, id: NodeId): NodeId[] {
   return out;
 }
 
-function ancestorIds(s: TreeState, id: NodeId): NodeId[] {
+export function ancestorIds(s: TreeState, id: NodeId): NodeId[] {
   const out: NodeId[] = [];
   let p = s.nodes[id]?.parentId ?? null;
   while (p) {
@@ -60,7 +60,7 @@ export function reuseOrAddChild(
   now = Date.now(),
 ): { state: TreeState; id: NodeId } {
   const existing = childrenOf(s, parentId).find(
-    (n) => stripHash(n.url) === stripHash(p.url) && (n.tabId === null || n.tabId === p.tabId),
+    (n) => routeKey(n.url) === routeKey(p.url) && (n.tabId === null || n.tabId === p.tabId),
   );
   if (existing) return { state: patchNode(s, existing.id, { tabId: p.tabId }), id: existing.id };
   return addNode(s, { ...p, parentId }, now);

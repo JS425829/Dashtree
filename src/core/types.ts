@@ -25,6 +25,8 @@ export interface TreeState {
   groups: Record<string, Group>;
   /** Set on browser start; cleared once the post-restart wipe of hollow nodes has run. */
   pendingWipe?: boolean;
+  /** When this browser session began (ms since epoch); bounds the restart-reconciliation and wipe windows. */
+  startedAt?: number;
 }
 
 export interface Settings {
