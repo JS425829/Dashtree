@@ -13,5 +13,6 @@ export function appearanceClasses(s: Settings): string[] {
   if (!s.showSiteName) out.push('hide-site');
   if (!s.showStatusDots) out.push('hide-dots');
   if (!s.dashedConnectors) out.push('solid-lines');
+  if (!s.showGroupOutlines) out.push('hide-groups');
   return out;
 }

@@ -54,6 +54,7 @@ export interface Settings {
   showSiteName: boolean;
   showStatusDots: boolean;
   dashedConnectors: boolean;
+  showGroupOutlines: boolean;
   /** Host names that are never recorded; each also covers its subdomains. */
   ignoredSites: string[];
 }
@@ -72,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showSiteName: true,
   showStatusDots: true,
   dashedConnectors: true,
+  showGroupOutlines: true,
   ignoredSites: [],
 };
 

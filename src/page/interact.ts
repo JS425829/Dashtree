@@ -3,6 +3,7 @@ import { hollowDescendants } from '../core/tree';
 import type { NodeId, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
 import { displayName } from './display';
+import { nextGroupColour } from './groups';
 import type { LayoutOpts, LayoutResult } from './layout';
 import { showMenu, type MenuItem } from './menu';
 import { showToast } from './toast';
@@ -45,7 +46,6 @@ export function needsConfirm(count: number, withChildren: boolean, enabled: bool
   return enabled && (count > 1 || withChildren);
 }
 
-const GROUP_COLOURS = ['#4da3ff', '#f5c542', '#7bd88f', '#ff7b72', '#c69cff', '#ffa657'];
 const DRAG_THRESHOLD = 4;
 
 /** Nodes whose box intersects the rectangle (corners may be given in any order). */
@@ -104,12 +104,17 @@ export function buildMenu(
     action: () => {
       const name = prompt('Group name')?.trim();
       if (!name) return;
-      const colour = GROUP_COLOURS[Object.keys(c.state.groups).length % GROUP_COLOURS.length];
-      void send({ type: 'createGroup', name, colour, nodeIds: ids });
+      void send({ type: 'createGroup', name, colour: nextGroupColour(c.state), nodeIds: ids });
     },
   });
   for (const g of Object.values(c.state.groups)) {
+    // only groups that would actually gain a member
+    if (ids.every((id) => g.nodeIds.includes(id))) continue;
     items.push({ label: `Add to group: ${g.name}`, action: () => void send({ type: 'addToGroup', groupId: g.id, nodeIds: ids }) });
+  }
+  for (const g of Object.values(c.state.groups)) {
+    if (!ids.some((id) => g.nodeIds.includes(id))) continue;
+    items.push({ label: `Remove from group: ${g.name}`, action: () => void send({ type: 'removeFromGroup', groupId: g.id, nodeIds: ids }) });
   }
 
   const hosts = ignoreCandidates(c.state, ids, c.ignoredSites);

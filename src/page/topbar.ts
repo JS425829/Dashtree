@@ -42,6 +42,7 @@ const APPEARANCE: Section = {
     ['showSiteName', 'Show the site name under each title'],
     ['showStatusDots', 'Show the open/closed dot above each card'],
     ['dashedConnectors', 'Dashed connector lines (off: solid)'],
+    ['showGroupOutlines', 'Show group outlines and labels on the tree'],
   ],
 };
 
@@ -101,6 +102,7 @@ export function renderTopBar(
   });
 
   const clear = document.createElement('button');
+  clear.className = 'clear-hollow';
   clear.textContent = 'Clear hollow nodes';
   clear.title = 'Remove every hollow node except favourites (the Cleanup settings say whether their hollow children go too)';
   clear.addEventListener('click', () => {
@@ -123,7 +125,12 @@ export function renderTopBar(
   const setOpen = (open: boolean) => {
     popover.hidden = !open;
     gear.setAttribute('aria-expanded', String(open));
+    // only one panel at a time: the Groups menu listens for this and closes itself
+    if (open) document.dispatchEvent(new CustomEvent('histo:popover-open', { detail: popover.id }));
   };
+  document.addEventListener('histo:popover-open', (e) => {
+    if ((e as CustomEvent<string>).detail !== popover.id) setOpen(false);
+  });
   gear.addEventListener('click', () => setOpen(Boolean(popover.hidden)));
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !popover.hidden) {

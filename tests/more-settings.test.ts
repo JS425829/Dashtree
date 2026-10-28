@@ -81,6 +81,7 @@ describe('appearance settings', () => {
     expect(appearanceClasses({ ...DEFAULT_SETTINGS, showSiteName: false })).toEqual(['hide-site']);
     expect(appearanceClasses({ ...DEFAULT_SETTINGS, showStatusDots: false })).toEqual(['hide-dots']);
     expect(appearanceClasses({ ...DEFAULT_SETTINGS, dashedConnectors: false })).toEqual(['solid-lines']);
+    expect(appearanceClasses({ ...DEFAULT_SETTINGS, showGroupOutlines: false })).toEqual(['hide-groups']);
   });
 
   test('compact cards are smaller in both directions', () => {

@@ -160,6 +160,42 @@ export function createGroup(
   return { state: { ...s, groups: { ...s.groups, [id]: { id, name, colour, nodeIds: [...new Set(nodeIds)] } } }, id };
 }
 
+const GROUP_COLOUR = /^#[0-9a-f]{6}$/i;
+
+/** Only plain #rrggbb values are accepted as group colours; they end up in inline styles. */
+export const isGroupColour = (c: string): boolean => GROUP_COLOUR.test(c);
+
+/** Removes the group itself; the nodes it covered are untouched. */
+export function deleteGroup(s: TreeState, groupId: string): TreeState {
+  if (!s.groups[groupId]) return s;
+  const { [groupId]: _gone, ...groups } = s.groups;
+  return { ...s, groups };
+}
+
+export function renameGroup(s: TreeState, groupId: string, name: string): TreeState {
+  const g = s.groups[groupId];
+  const clean = name.trim();
+  if (!g || !clean) return s;
+  return { ...s, groups: { ...s.groups, [groupId]: { ...g, name: clean } } };
+}
+
+export function setGroupColour(s: TreeState, groupId: string, colour: string): TreeState {
+  const g = s.groups[groupId];
+  if (!g || !isGroupColour(colour)) return s;
+  return { ...s, groups: { ...s.groups, [groupId]: { ...g, colour } } };
+}
+
+/** Takes nodes out of a group; a group left with no members goes away. */
+export function removeFromGroup(s: TreeState, groupId: string, nodeIds: NodeId[]): TreeState {
+  const g = s.groups[groupId];
+  if (!g) return s;
+  const gone = new Set(nodeIds);
+  const rest = g.nodeIds.filter((id) => !gone.has(id));
+  if (rest.length === g.nodeIds.length) return s;
+  if (!rest.length) return deleteGroup(s, groupId);
+  return { ...s, groups: { ...s.groups, [groupId]: { ...g, nodeIds: rest } } };
+}
+
 export function addToGroup(s: TreeState, groupId: string, nodeIds: NodeId[]): TreeState {
   const g = s.groups[groupId];
   if (!g) return s;

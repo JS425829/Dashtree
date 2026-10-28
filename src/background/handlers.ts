@@ -1,7 +1,8 @@
 import { decideNavigation, isIgnoredUrl, isTrackableUrl, routeKey } from '../core/rules';
 import {
-  addNode, addToGroup, ancestorIds, clearHollow, closeTab, createGroup, deleteNodes, descendantIds, nodeForTab,
-  renameNode, reuseOrAddChild, setFavourite, setNote, updateNode,
+  addNode, addToGroup, ancestorIds, clearHollow, closeTab, createGroup, deleteGroup, deleteNodes, descendantIds,
+  nodeForTab, removeFromGroup, renameGroup, renameNode, reuseOrAddChild, setFavourite, setGroupColour, setNote,
+  updateNode,
 } from '../core/tree';
 import type { NodeId, Settings, TreeNode, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
@@ -223,5 +224,13 @@ export async function handleCommand(store: Store, c: Command): Promise<void> {
       return store.mutate((s) => createGroup(s, c.name, c.colour, c.nodeIds).state);
     case 'addToGroup':
       return store.mutate((s) => addToGroup(s, c.groupId, c.nodeIds));
+    case 'removeFromGroup':
+      return store.mutate((s) => removeFromGroup(s, c.groupId, c.nodeIds));
+    case 'deleteGroup':
+      return store.mutate((s) => deleteGroup(s, c.groupId));
+    case 'renameGroup':
+      return store.mutate((s) => renameGroup(s, c.groupId, c.name));
+    case 'recolourGroup':
+      return store.mutate((s) => setGroupColour(s, c.groupId, c.colour));
   }
 }

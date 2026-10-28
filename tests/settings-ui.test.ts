@@ -63,6 +63,7 @@ describe('on/off settings', () => {
     ['site name', 'showSiteName'],
     ['open/closed dot', 'showStatusDots'],
     ['Dashed connector', 'dashedConnectors'],
+    ['group outlines', 'showGroupOutlines'],
   ];
   const checkboxFor = (text: string) =>
     [...document.querySelectorAll('label')].find((l) => l.textContent!.includes(text))!.querySelector<HTMLInputElement>('input[type=checkbox]')!;

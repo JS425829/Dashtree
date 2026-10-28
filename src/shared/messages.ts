@@ -10,6 +10,10 @@ export type Command =
   | { type: 'clearHollow' }
   | { type: 'createGroup'; name: string; colour: string; nodeIds: NodeId[] }
   | { type: 'addToGroup'; groupId: string; nodeIds: NodeId[] }
+  | { type: 'removeFromGroup'; groupId: string; nodeIds: NodeId[] }
+  | { type: 'deleteGroup'; groupId: string }
+  | { type: 'renameGroup'; groupId: string; name: string }
+  | { type: 'recolourGroup'; groupId: string; colour: string }
   | { type: 'getSettings' }
   | { type: 'setSettings'; settings: Partial<Settings> };
 

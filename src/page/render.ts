@@ -1,3 +1,4 @@
+import { isGroupColour } from '../core/tree';
 import type { NodeId, TreeNode, TreeState } from '../core/types';
 import { displayName } from './display';
 import { DEFAULT_LAYOUT, type LayoutOpts, type LayoutResult } from './layout';
@@ -10,6 +11,7 @@ export interface RenderUi {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const GROUP_PAD = 8;
+const FALLBACK_COLOUR = '#5aaeff';
 const DOT_GAP = 12; // distance from a card's top edge up to its timeline dot
 
 function hostOf(url: string): string {
@@ -160,12 +162,13 @@ function makeGroupBoxes(s: TreeState, layout: LayoutResult, opts: LayoutOpts): H
       const layer = layers.get(id) ?? 0;
       layers.set(id, layer + 1);
       const pad = GROUP_PAD + layer * 4;
+      const colour = isGroupColour(g.colour) ? g.colour : FALLBACK_COLOUR; // it goes into an inline style
       const box = document.createElement('div');
       box.className = 'group-box';
-      box.style.cssText = `left:${p.x - pad}px;top:${p.y - pad}px;width:${nodeW + 2 * pad}px;height:${nodeH + 2 * pad}px;border-color:${g.colour}`;
+      box.style.cssText = `left:${p.x - pad}px;top:${p.y - pad}px;width:${nodeW + 2 * pad}px;height:${nodeH + 2 * pad}px;border-color:${colour}`;
       const tag = document.createElement('span');
       tag.className = 'group-label';
-      tag.style.background = g.colour;
+      tag.style.background = colour;
       tag.textContent = g.name;
       box.append(tag);
       boxes.push(box);

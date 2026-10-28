@@ -5,7 +5,9 @@ import { appearanceClasses, layoutOptsFor } from './appearance';
 import { DEFAULT_LAYOUT, layoutForest, type LayoutOpts, type LayoutResult } from './layout';
 import { renderForest } from './render';
 import { applyCachedTheme, applyTheme } from './theme';
-import { matchIds, renderTopBar } from './topbar';
+import { computeMatches } from './groups';
+import { renderGroupsMenu } from './groups-menu';
+import { renderTopBar } from './topbar';
 
 applyCachedTheme();
 
@@ -18,6 +20,8 @@ export interface PageContext {
   readonly ignoredSites: string[];
   selected: Set<NodeId>;
   matches: Set<NodeId> | null;
+  /** The group whose members are highlighted (everything else dimmed), if any. */
+  focusGroup: string | null;
 }
 
 export const ctx: PageContext = {
@@ -29,6 +33,7 @@ export const ctx: PageContext = {
   get ignoredSites() { return this.settings.ignoredSites; },
   selected: new Set(),
   matches: null,
+  focusGroup: null,
 };
 
 export const send = <T = void>(c: Command): Promise<T> => chrome.runtime.sendMessage(c);
@@ -53,9 +58,39 @@ const topbar = renderTopBar(document.getElementById('topbar')!, ctx.settings, se
 });
 
 function applyQuery(): void {
-  ctx.matches = query.trim() ? matchIds(ctx.state, query) : null;
+  ctx.matches = computeMatches(ctx.state, query, ctx.focusGroup);
   draw();
 }
+
+const viewport = document.getElementById('viewport')!;
+
+function scrollToNodes(ids: NodeId[]): void {
+  const spots = ids.map((id) => ctx.layout.pos[id]).filter(Boolean);
+  if (!spots.length) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  viewport.scrollTo({
+    left: Math.max(0, Math.min(...spots.map((p) => p.x)) - 60),
+    top: Math.max(0, Math.min(...spots.map((p) => p.y)) - 60),
+    behavior: reduce ? 'auto' : 'smooth',
+  });
+}
+
+const groupsMenu = renderGroupsMenu(document.getElementById('topbar')!, {
+  send,
+  getSelected: () => [...ctx.selected],
+  selectNodes: (ids) => {
+    ctx.selected.clear();
+    ids.forEach((id) => ctx.selected.add(id));
+    draw();
+  },
+  setFocus: (id) => {
+    ctx.focusGroup = id;
+    applyQuery();
+    groupsMenu.update(ctx.state, ctx.focusGroup);
+  },
+  scrollTo: scrollToNodes,
+  confirmDelete: () => ctx.settings.confirmBeforeDeleting,
+});
 
 let latestRequest = 0;
 
@@ -68,6 +103,8 @@ export async function refresh(): Promise<void> {
   ctx.settings = reply.settings;
   applyTheme(ctx.settings.theme);
   topbar.update(ctx.settings);
+  if (ctx.focusGroup && !ctx.state.groups[ctx.focusGroup]) ctx.focusGroup = null; // the focused group was deleted
+  groupsMenu.update(ctx.state, ctx.focusGroup);
   applyQuery();
 }
 
