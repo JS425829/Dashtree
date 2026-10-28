@@ -6,6 +6,8 @@ export interface TreeNode {
   parentId: NodeId | null;
   url: string;
   title: string;
+  /** Position among its siblings once they have been reordered by hand; until then siblings follow `createdAt`. */
+  order?: number;
   /** A name the user gave this node; shown instead of `title`, which keeps following the page. */
   customTitle?: string;
   favIconUrl: string;
@@ -55,6 +57,8 @@ export interface Settings {
   showStatusDots: boolean;
   dashedConnectors: boolean;
   showGroupOutlines: boolean;
+  /** Show each node's note in a box beside it (off: just a pencil mark on the card). */
+  showNoteBoxes: boolean;
   /** Host names that are never recorded; each also covers its subdomains. */
   ignoredSites: string[];
 }
@@ -74,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showStatusDots: true,
   dashedConnectors: true,
   showGroupOutlines: true,
+  showNoteBoxes: true,
   ignoredSites: [],
 };
 

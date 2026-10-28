@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS, EMPTY_STATE, type NodeId, type Settings, type TreeState } from '../core/types';
 import { CHANGED, type Command, type StateReply } from '../shared/messages';
-import { attachInteractions } from './interact';
+import { attachInteractions, editNote } from './interact';
 import { appearanceClasses, layoutOptsFor } from './appearance';
 import { DEFAULT_LAYOUT, layoutForest, type LayoutOpts, type LayoutResult } from './layout';
 import { renderForest } from './render';
@@ -18,6 +18,7 @@ export interface PageContext {
   opts: LayoutOpts;
   readonly confirmDelete: boolean;
   readonly ignoredSites: string[];
+  readonly showNotes: boolean;
   selected: Set<NodeId>;
   matches: Set<NodeId> | null;
   /** The group whose members are highlighted (everything else dimmed), if any. */
@@ -31,6 +32,7 @@ export const ctx: PageContext = {
   opts: DEFAULT_LAYOUT,
   get confirmDelete() { return this.settings.confirmBeforeDeleting; },
   get ignoredSites() { return this.settings.ignoredSites; },
+  get showNotes() { return this.settings.showNoteBoxes; },
   selected: new Set(),
   matches: null,
   focusGroup: null,
@@ -44,9 +46,13 @@ const empty = document.getElementById('empty')!;
 export function draw(): void {
   for (const id of ctx.selected) if (!ctx.state.nodes[id]) ctx.selected.delete(id);
   ctx.opts = layoutOptsFor(ctx.settings);
-  ctx.layout = layoutForest(ctx.state, ctx.opts);
+  ctx.layout = layoutForest(ctx.state, ctx.opts, ctx.settings.showNoteBoxes);
   canvas.className = appearanceClasses(ctx.settings).join(' ');
-  renderForest(canvas, ctx.state, ctx.layout, { selected: ctx.selected, matches: ctx.matches }, ctx.opts);
+  renderForest(
+    canvas, ctx.state, ctx.layout,
+    { selected: ctx.selected, matches: ctx.matches, showNotes: ctx.settings.showNoteBoxes },
+    ctx.opts,
+  );
   empty.hidden = Object.keys(ctx.state.nodes).length > 0;
 }
 
@@ -110,6 +116,12 @@ export async function refresh(): Promise<void> {
 
 canvas.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
+  const noteBox = target.closest<HTMLElement>('.note-box');
+  if (noteBox) {
+    const node = ctx.state.nodes[noteBox.dataset.id!];
+    if (node) editNote(node.id, node.note, send);
+    return;
+  }
   const el = target.closest<HTMLElement>('.node');
   if (!el) return;
   const id = el.dataset.id!;

@@ -1,10 +1,10 @@
 import { isIgnoredUrl, isTrackableUrl } from '../core/rules';
-import { hollowDescendants } from '../core/tree';
+import { hollowDescendants, moveNode, orderedSiblings, stepTarget, type MovePosition } from '../core/tree';
 import type { NodeId, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
 import { displayName } from './display';
 import { nextGroupColour } from './groups';
-import type { LayoutOpts, LayoutResult } from './layout';
+import { NOTE_BOX, type LayoutOpts, type LayoutResult } from './layout';
 import { showMenu, type MenuItem } from './menu';
 import { showToast } from './toast';
 
@@ -24,7 +24,30 @@ export interface InteractCtx {
   confirmDelete: boolean;
   /** The ignoredSites setting, so the menu can add to it. */
   ignoredSites: string[];
+  /** Note boxes are on, so a card with a note is wider when placing the drop marker. */
+  showNotes?: boolean;
   selected: Set<NodeId>;
+}
+
+/** Asks for a note (starting from the current one) and sends it; an empty answer clears it, cancelling does nothing. */
+export function editNote(id: NodeId, current: string, send: (c: Command) => unknown): void {
+  const note = prompt('Note for this tab', current);
+  if (note !== null) void send({ type: 'setNote', id, note });
+}
+
+/**
+ * Where dragging `draggedId` with the pointer at canvas x `pointerX` would drop it among its siblings,
+ * or null when that would not change the order.
+ */
+export function reorderTarget(
+  s: TreeState, layout: LayoutResult, nodeW: number, draggedId: NodeId, pointerX: number,
+): { targetId: NodeId; position: MovePosition } | null {
+  const others = orderedSiblings(s, draggedId).filter((id) => id !== draggedId && layout.pos[id]);
+  if (!others.length) return null;
+  const before = others.find((id) => layout.pos[id].x + nodeW / 2 > pointerX);
+  const targetId = before ?? others[others.length - 1];
+  const position: MovePosition = before ? 'before' : 'after';
+  return moveNode(s, draggedId, targetId, position) === s ? null : { targetId, position };
 }
 
 /** The sites (once each, in order) that "Ignore" would add for these nodes: real sites not already covered. */
@@ -83,10 +106,7 @@ export function buildMenu(
       },
       {
         label: 'Add notes',
-        action: () => {
-          const note = prompt('Note for this tab', c.state.nodes[id].note);
-          if (note !== null) void send({ type: 'setNote', id, note });
-        },
+        action: () => editNote(id, c.state.nodes[id].note, send),
       },
       {
         label: 'Select hollow children',
@@ -97,6 +117,10 @@ export function buildMenu(
         },
       },
     );
+    const left = stepTarget(c.state, id, -1);
+    const right = stepTarget(c.state, id, 1);
+    if (left) items.push({ label: 'Move left', action: () => void send({ type: 'move', id, ...left }) });
+    if (right) items.push({ label: 'Move right', action: () => void send({ type: 'move', id, ...right }) });
   }
 
   items.push('separator', {
@@ -149,8 +173,92 @@ export function attachInteractions(
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  // dragging a card sideways reorders it among its siblings
+  interface NodeDrag {
+    id: NodeId;
+    x: number;
+    y: number;
+    el: HTMLElement;
+    moved: boolean;
+    cancelled: boolean;
+    indicator: HTMLElement | null;
+    target: ReturnType<typeof reorderTarget>;
+  }
+  let nodeDrag: NodeDrag | null = null;
+  let swallowClick = false;
+
+  const dropLift = (d: NodeDrag) => {
+    d.el.classList.remove('dragging');
+    d.el.style.transform = '';
+    d.indicator?.remove();
+    d.indicator = null;
+  };
+
   viewport.addEventListener('mousedown', (e) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('.node')) return;
+    const t = e.target as HTMLElement;
+    const card = t.closest<HTMLElement>('.node');
+    if (card && e.button === 0 && !e.ctrlKey && !e.metaKey && !t.closest('.star')) {
+      nodeDrag = { id: card.dataset.id!, x: e.clientX, y: e.clientY, el: card, moved: false, cancelled: false, indicator: null, target: null };
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    const d = nodeDrag;
+    if (!d || d.cancelled) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD) return;
+    d.moved = true;
+    d.el.classList.add('dragging');
+    d.el.style.transform = `translate(${dx}px, ${dy}px)`;
+
+    const c = getCtx();
+    d.target = reorderTarget(c.state, c.layout, c.opts.nodeW, d.id, canvasPoint(e).x);
+    if (!d.target) {
+      d.indicator?.remove();
+      d.indicator = null;
+      return;
+    }
+    const at = c.layout.pos[d.target.targetId];
+    const noted = c.showNotes && c.state.nodes[d.target.targetId].note?.trim();
+    const slot = c.opts.nodeW + (noted ? NOTE_BOX.gap + NOTE_BOX.w : 0);
+    d.indicator ??= Object.assign(document.createElement('div'), { className: 'drop-indicator' });
+    if (!d.indicator.isConnected) canvas.append(d.indicator);
+    Object.assign(d.indicator.style, {
+      left: `${d.target.position === 'before' ? at.x - c.opts.gapX / 2 - 2 : at.x + slot + c.opts.gapX / 2 - 2}px`,
+      top: `${at.y - 4}px`,
+      height: `${c.opts.nodeH + 8}px`,
+    });
+  });
+
+  window.addEventListener('mouseup', () => {
+    const d = nodeDrag;
+    if (!d) return;
+    nodeDrag = null;
+    dropLift(d);
+    if (d.moved) {
+      // the click that follows a drag must not open the page
+      swallowClick = true;
+      setTimeout(() => { swallowClick = false; }, 0);
+      if (!d.cancelled && d.target) void send({ type: 'move', id: d.id, ...d.target });
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nodeDrag && !nodeDrag.cancelled) {
+      nodeDrag.cancelled = true;
+      dropLift(nodeDrag);
+    }
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
+
+  viewport.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.node, .note-box')) return;
     moved = false;
     if (e.ctrlKey || e.metaKey) {
       const p = canvasPoint(e);

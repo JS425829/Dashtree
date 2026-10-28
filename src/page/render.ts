@@ -1,12 +1,14 @@
 import { isGroupColour } from '../core/tree';
 import type { NodeId, TreeNode, TreeState } from '../core/types';
 import { displayName } from './display';
-import { DEFAULT_LAYOUT, type LayoutOpts, type LayoutResult } from './layout';
+import { DEFAULT_LAYOUT, NOTE_BOX, type LayoutOpts, type LayoutResult } from './layout';
 
 export interface RenderUi {
   selected: Set<NodeId>;
   /** Nodes matching the active search, or null when no search is active (nothing dimmed). */
   matches: Set<NodeId> | null;
+  /** Show each node's note in a box beside its card (the layout must have been made with room for them). */
+  showNotes?: boolean;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -177,6 +179,21 @@ function makeGroupBoxes(s: TreeState, layout: LayoutResult, opts: LayoutOpts): H
   return boxes;
 }
 
+/** A sticky-note box beside the card; clicking it edits the note. */
+function makeNoteBox(n: TreeNode, at: { x: number; y: number }, ui: RenderUi, opts: LayoutOpts): HTMLElement {
+  const box = document.createElement('button');
+  box.type = 'button';
+  box.className = ui.matches && !ui.matches.has(n.id) ? 'note-box dim' : 'note-box';
+  box.dataset.id = n.id;
+  box.title = 'Click to edit this note';
+  box.style.left = `${at.x + opts.nodeW + NOTE_BOX.gap}px`;
+  box.style.top = `${at.y}px`;
+  box.style.width = `${NOTE_BOX.w}px`;
+  box.style.maxHeight = `${opts.nodeH + opts.gapY - 12}px`; // never reaches the row below
+  box.textContent = n.note ?? '';
+  return box;
+}
+
 function groupNamesByNode(s: TreeState): Map<NodeId, string[]> {
   const out = new Map<NodeId, string[]>();
   for (const g of Object.values(s.groups)) {
@@ -194,5 +211,10 @@ export function renderForest(
   const nodes = Object.values(s.nodes)
     .filter((n) => layout.pos[n.id])
     .map((n) => makeNode(n, layout.pos[n.id].x, layout.pos[n.id].y, ui, groups.get(n.id) ?? [], opts));
-  container.replaceChildren(...makeGroupBoxes(s, layout, opts), makeConnectors(s, layout, opts), ...nodes);
+  const noteBoxes = ui.showNotes
+    ? Object.values(s.nodes)
+      .filter((n) => layout.pos[n.id] && n.note?.trim())
+      .map((n) => makeNoteBox(n, layout.pos[n.id], ui, opts))
+    : [];
+  container.replaceChildren(...makeGroupBoxes(s, layout, opts), makeConnectors(s, layout, opts), ...nodes, ...noteBoxes);
 }

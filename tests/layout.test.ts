@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { layoutForest } from '../src/page/layout';
+import { NOTE_BOX, layoutForest } from '../src/page/layout';
 import type { NodeId, TreeNode, TreeState } from '../src/core/types';
 
 const OPTS = { nodeW: 100, nodeH: 30, gapX: 20, gapY: 40 };
@@ -51,6 +51,43 @@ describe('layoutForest', () => {
       expect(p.x + OPTS.nodeW).toBeLessThanOrEqual(width);
       expect(p.y + OPTS.nodeH).toBeLessThanOrEqual(height);
     }
+  });
+
+  test('with note boxes on, a node that has a note gets room for its box, and the next sibling moves over', () => {
+    const base = build([['A', null], ['B', 'A'], ['C', 'A']]);
+    const noted = { ...base, nodes: { ...base.nodes, B: { ...base.nodes.B, note: 'check costs' } } };
+    const plain = layoutForest(noted, OPTS, false);
+    const withBoxes = layoutForest(noted, OPTS, true);
+    expect(withBoxes.pos.C.x - withBoxes.pos.B.x).toBe(plain.pos.C.x - plain.pos.B.x + NOTE_BOX.w + NOTE_BOX.gap);
+  });
+
+  test('nodes without notes lay out exactly as before, whether or not note boxes are on', () => {
+    expect(layoutForest(sample(), OPTS, true)).toEqual(layoutForest(sample(), OPTS, false));
+  });
+
+  test('a blank note takes no room', () => {
+    const s = sample();
+    const blank = { ...s, nodes: { ...s.nodes, B: { ...s.nodes.B, note: '   ' } } };
+    expect(layoutForest(blank, OPTS, true)).toEqual(layoutForest(s, OPTS, true));
+  });
+
+  test('a card plus its note box never overlaps the next card at the same depth', () => {
+    const s = sample();
+    const noted = { ...s, nodes: Object.fromEntries(Object.entries(s.nodes).map(([k, n]) => [k, { ...n, note: 'n' }])) };
+    const { pos } = layoutForest(noted, OPTS, true);
+    const byY = new Map<number, number[]>();
+    for (const p of Object.values(pos)) byY.set(p.y, [...(byY.get(p.y) ?? []), p.x]);
+    for (const xs of byY.values()) {
+      xs.sort((a, b) => a - b);
+      for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(OPTS.nodeW + NOTE_BOX.gap + NOTE_BOX.w + OPTS.gapX);
+    }
+  });
+
+  test('a parent is still centred over its children\'s cards when they carry notes', () => {
+    const base = build([['A', null], ['B', 'A'], ['C', 'A']]);
+    const noted = { ...base, nodes: { ...base.nodes, C: { ...base.nodes.C, note: 'wide' } } };
+    const { pos } = layoutForest(noted, OPTS, true);
+    expect(pos.A.x).toBe((pos.B.x + pos.C.x) / 2);
   });
 
   test('an empty state lays out to nothing', () => {

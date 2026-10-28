@@ -7,6 +7,7 @@ export type Command =
   | { type: 'setFavourite'; id: NodeId; value: boolean }
   | { type: 'setNote'; id: NodeId; note: string }
   | { type: 'rename'; id: NodeId; title: string }
+  | { type: 'move'; id: NodeId; targetId: NodeId; position: 'before' | 'after' }
   | { type: 'clearHollow' }
   | { type: 'createGroup'; name: string; colour: string; nodeIds: NodeId[] }
   | { type: 'addToGroup'; groupId: string; nodeIds: NodeId[] }

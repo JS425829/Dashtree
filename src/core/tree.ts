@@ -37,6 +37,44 @@ export function ancestorIds(s: TreeState, id: NodeId): NodeId[] {
 const patchNode = (s: TreeState, id: NodeId, patch: Partial<TreeNode>): TreeState =>
   s.nodes[id] ? { ...s, nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } } : s;
 
+/** Display order: hand-set order first (small numbers), otherwise creation time, so new siblings land last. */
+export const byOrder = (a: TreeNode, b: TreeNode): number =>
+  (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || a.id.localeCompare(b.id);
+
+/** The node's siblings, itself included, in display order. A node whose parent is gone counts as a root. */
+export function orderedSiblings(s: TreeState, id: NodeId): NodeId[] {
+  const parentOf = (n: TreeNode) => (n.parentId && s.nodes[n.parentId] ? n.parentId : null);
+  const me = s.nodes[id];
+  if (!me) return [];
+  const parent = parentOf(me);
+  return Object.values(s.nodes).filter((n) => parentOf(n) === parent).sort(byOrder).map((n) => n.id);
+}
+
+export type MovePosition = 'before' | 'after';
+
+/** Places `id` just before or after a sibling. Anything that is not a real change returns the state untouched. */
+export function moveNode(s: TreeState, id: NodeId, targetId: NodeId, position: MovePosition): TreeState {
+  if (id === targetId) return s;
+  const list = orderedSiblings(s, id);
+  if (!list.includes(targetId)) return s;
+  const rest = list.filter((x) => x !== id);
+  const at = rest.indexOf(targetId) + (position === 'after' ? 1 : 0);
+  const next = [...rest.slice(0, at), id, ...rest.slice(at)];
+  if (next.every((x, i) => x === list[i])) return s;
+  const nodes = { ...s.nodes };
+  next.forEach((nid, i) => { nodes[nid] = { ...nodes[nid], order: i }; });
+  return { ...s, nodes };
+}
+
+/** The neighbour to move beside for a one-step move left (-1) or right (1), or null at the ends. */
+export function stepTarget(s: TreeState, id: NodeId, dir: -1 | 1): { targetId: NodeId; position: MovePosition } | null {
+  const list = orderedSiblings(s, id);
+  const i = list.indexOf(id);
+  if (i < 0) return null;
+  if (dir < 0) return i > 0 ? { targetId: list[i - 1], position: 'before' } : null;
+  return i < list.length - 1 ? { targetId: list[i + 1], position: 'after' } : null;
+}
+
 export function addNode(s: TreeState, p: NewNode, now = Date.now()): { state: TreeState; id: NodeId } {
   const id = crypto.randomUUID();
   const node: TreeNode = {

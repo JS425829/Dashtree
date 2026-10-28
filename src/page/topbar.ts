@@ -43,6 +43,7 @@ const APPEARANCE: Section = {
     ['showStatusDots', 'Show the open/closed dot above each card'],
     ['dashedConnectors', 'Dashed connector lines (off: solid)'],
     ['showGroupOutlines', 'Show group outlines and labels on the tree'],
+    ['showNoteBoxes', 'Show notes in a box beside each node'],
   ],
 };
 
