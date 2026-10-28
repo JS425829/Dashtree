@@ -51,6 +51,19 @@ describe('tree page accessibility', () => {
     expect(node(ids.open).classList.contains('hollow')).toBe(false);
   });
 
+  test('each node has a status dot above it: filled for an open tab, a ring for a closed one', () => {
+    expect(container.querySelectorAll('circle.dot')).toHaveLength(2);
+    expect(container.querySelectorAll('circle.dot.open')).toHaveLength(1);
+    expect(container.querySelectorAll('circle.dot.hollow')).toHaveLength(1);
+  });
+
+  test('the favicon sits on a coloured tile and the card shows the site under the title', () => {
+    const n = node(ids.open);
+    expect(n.querySelector('.tile')).not.toBeNull();
+    expect(n.querySelector('.label')!.textContent).toBe('Azure portal');
+    expect(n.querySelector('.sub')!.textContent).toBe('portal.azure.com');
+  });
+
   test('a group outlines only its own members, one box each, never the nodes between them', () => {
     const g = createGroup(ids.state, 'Costs', '#4da3ff', [ids.open, ids.hollow]);
     renderForest(container, g.state, layoutForest(g.state), { selected: new Set(), matches: null });

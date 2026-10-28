@@ -9,6 +9,7 @@ export interface RenderUi {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const GROUP_PAD = 8;
+const DOT_GAP = 12; // distance from a card's top edge up to its timeline dot
 
 function hostOf(url: string): string {
   try { return new URL(url).hostname; } catch { return ''; }
@@ -23,21 +24,36 @@ function label(n: TreeNode): string {
   } catch { return n.url; }
 }
 
-/** The tab favicon, or a letter badge when there is none or it fails to load. */
-function makeIcon(n: TreeNode): HTMLElement {
+/** A stable pastel hue per site, so each site's tile keeps its colour. */
+function hueOf(host: string): number {
+  let h = 0;
+  for (const c of host) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
+/** The tab favicon on a coloured rounded tile; a letter badge when there is none or it fails to load. */
+function makeTile(n: TreeNode): HTMLElement {
+  const host = hostOf(n.url);
+  const tile = document.createElement('span');
+  tile.className = 'tile';
+  tile.style.setProperty('--h', String(hueOf(host)));
   const fallback = () => {
     const f = document.createElement('span');
     f.className = 'ico-fallback';
-    f.textContent = (hostOf(n.url)[0] ?? '·').toUpperCase();
+    f.textContent = (host[0] ?? '·').toUpperCase();
     return f;
   };
-  if (!n.favIconUrl) return fallback();
+  if (!n.favIconUrl) {
+    tile.append(fallback());
+    return tile;
+  }
   const img = document.createElement('img');
   img.className = 'ico';
   img.alt = '';
   img.src = n.favIconUrl;
   img.addEventListener('error', () => img.replaceWith(fallback()), { once: true });
-  return img;
+  tile.append(img);
+  return tile;
 }
 
 const ICONS = {
@@ -79,13 +95,19 @@ function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: strin
   const text = document.createElement('span');
   text.className = 'label';
   text.textContent = label(n);
+  const sub = document.createElement('span');
+  sub.className = 'sub';
+  sub.textContent = hostOf(n.url);
+  const words = document.createElement('span');
+  words.className = 'words';
+  words.append(text, sub);
 
   const main = document.createElement('button');
   main.type = 'button';
   main.className = 'node-main';
   main.title = n.url;
   main.setAttribute('aria-label', describe(n, text.textContent, groups));
-  main.append(makeIcon(n), text);
+  main.append(makeTile(n), words);
   if (n.note) {
     const note = document.createElement('span');
     note.className = 'note-mark';
@@ -112,14 +134,24 @@ function makeConnectors(s: TreeState, layout: LayoutResult): SVGSVGElement {
   svg.setAttribute('width', String(layout.width));
   svg.setAttribute('height', String(layout.height));
   for (const n of Object.values(s.nodes)) {
-    const from = n.parentId ? layout.pos[n.parentId] : undefined;
     const to = layout.pos[n.id];
-    if (!from || !to) continue;
-    const x1 = from.x + nodeW / 2, y1 = from.y + nodeH, x2 = to.x + nodeW / 2, y2 = to.y;
-    const mid = (y1 + y2) / 2;
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', `M${x1} ${y1} V${mid} H${x2} V${y2}`);
-    svg.append(path);
+    if (!to) continue;
+    const x2 = to.x + nodeW / 2, y2 = to.y - DOT_GAP;
+    const from = n.parentId ? layout.pos[n.parentId] : undefined;
+    if (from) {
+      const x1 = from.x + nodeW / 2, y1 = from.y + nodeH, mid = (y1 + y2) / 2;
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', `M${x1} ${y1} C${x1} ${mid} ${x2} ${mid} ${x2} ${y2}`);
+      path.setAttribute('class', n.tabId === null ? 'link hollow' : 'link open');
+      svg.append(path);
+    }
+    // timeline dot: filled for an open tab, a ring for a closed one
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('class', n.tabId === null ? 'dot hollow' : 'dot open');
+    dot.setAttribute('cx', String(x2));
+    dot.setAttribute('cy', String(y2));
+    dot.setAttribute('r', '5');
+    svg.append(dot);
   }
   return svg;
 }
