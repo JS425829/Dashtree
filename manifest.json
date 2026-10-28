@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Dashtree",
+  "name": "Histo-tree",
   "version": "0.1.0",
   "description": "See your tabs as a tree.",
   "incognito": "not_allowed",
@@ -13,7 +13,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Open Dashtree",
+    "default_title": "Open Histo-tree",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -24,7 +24,7 @@
   "commands": {
     "_execute_action": {
       "suggested_key": { "default": "Alt+Shift+T" },
-      "description": "Open the Dashtree tree page"
+      "description": "Open the Histo-tree tree page"
     }
   }
 }

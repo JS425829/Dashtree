@@ -22,7 +22,7 @@ const tabApi: TabApi = {
   },
 };
 
-const log = (e: unknown) => console.error('[dashtree]', e);
+const log = (e: unknown) => console.error('[histo-tree]', e);
 
 /**
  * Once per browser session (chrome.storage.session is cleared when the browser closes or the extension reloads)

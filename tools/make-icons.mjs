@@ -1,4 +1,4 @@
-// Draws the Dashtree icon (a tree of linked nodes on a teal rounded square) and writes icons/icon-{16,32,48,128}.png.
+// Draws the Histo-tree icon (a tree of linked nodes on a teal rounded square) and writes icons/icon-{16,32,48,128}.png.
 // No dependencies: a tiny anti-aliased rasteriser plus a PNG encoder built on node:zlib.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';

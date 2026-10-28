@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS, EMPTY_STATE, type Settings, type TreeState } from '../core/types';
 
+// The extension is now called Histo-tree, but this name is where saved trees live: changing it would orphan them.
 const DB_NAME = 'dashtree';
 const STORE = 'tree';
 const KEY = 'state';

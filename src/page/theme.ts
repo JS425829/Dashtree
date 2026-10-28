@@ -1,5 +1,6 @@
 import type { Theme } from '../core/types';
 
+// Pre-rename storage key, kept so existing users' remembered theme still applies.
 const KEY = 'dashtree-theme';
 
 export function effectiveTheme(setting: Theme, systemDark: boolean): 'light' | 'dark' {

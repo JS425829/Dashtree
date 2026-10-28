@@ -1,8 +1,10 @@
-# Dashtree — design
+# Histo-tree — design
+
+> Renamed from "Dashtree". The internal storage names (IndexedDB `dashtree`, theme key `dashtree-theme`) deliberately keep the old name so saved trees survive the rename.
 
 ## Intent
 
-Edge tabs are normally a flat strip or a grouped list. Jude works across many related tabs (heavily Azure: portal, DevOps, resource groups) and loses the trail of how they got from one page to another. Dashtree shows tabs as a **tree**: each tab opened from scratch is a root, and every page reached from it is a branch. The second purpose is finding what colleagues are working on (a ticket, an Azure resource) by looking at or searching their trees.
+Edge tabs are normally a flat strip or a grouped list. Jude works across many related tabs (heavily Azure: portal, DevOps, resource groups) and loses the trail of how they got from one page to another. Histo-tree shows tabs as a **tree**: each tab opened from scratch is a root, and every page reached from it is a branch. The second purpose is finding what colleagues are working on (a ticket, an Azure resource) by looking at or searching their trees.
 
 ## Goals
 
