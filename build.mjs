@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync } from 'node:fs';
 
 mkdirSync('dist', { recursive: true });
 
@@ -13,4 +13,5 @@ await build({
 });
 
 copyFileSync('manifest.json', 'dist/manifest.json');
+cpSync('icons', 'dist/icons', { recursive: true });
 copyFileSync('src/page/index.html', 'dist/index.html');

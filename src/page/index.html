@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashtree</title>
+<link rel="icon" href="icons/icon-32.png">
 <style>
   /* soft mint by default; deep teal-grey when the system prefers dark */
   :root {
@@ -44,7 +45,8 @@
   :focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 
   #topbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px; padding:22px 36px 6px; flex:none; }
-  #topbar h1 { font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0 10px 0 0; }
+  #topbar h1 { display:flex; align-items:center; gap:10px; font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0 10px 0 0; }
+  #topbar .logo { flex:none; filter:drop-shadow(0 4px 10px rgba(22,138,116,.35)); }
   #topbar .spacer { flex:1; }
   #topbar input[type=search] { width:min(300px,100%); min-height:40px; background:var(--card); color:var(--text); border:0; border-radius:999px; padding:8px 18px; font-size:14px; box-shadow:var(--shadow); }
   #topbar input[type=search]::placeholder { color:var(--muted); }
@@ -130,7 +132,7 @@
 </style>
 </head>
 <body>
-<header id="topbar"><h1>Dashtree</h1></header>
+<header id="topbar"><h1><svg class="logo" viewBox="0 0 128 128" width="32" height="32" aria-hidden="true"><defs><linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34c3a1"/><stop offset="1" stop-color="#168a74"/></linearGradient></defs><rect width="128" height="128" rx="30" fill="url(#logo-bg)"/><g fill="#fff"><circle cx="64" cy="32" r="13"/><rect x="60.5" y="32" width="7" height="35.5"/><rect x="24.5" y="60.5" width="79" height="7"/><rect x="24.5" y="64" width="7" height="30"/><circle cx="28" cy="94" r="11"/><rect x="60.5" y="64" width="7" height="20"/><rect x="96.5" y="64" width="7" height="20"/></g><g fill="none" stroke="#fff" stroke-width="5.25"><circle cx="64" cy="94" r="8.4"/><circle cx="100" cy="94" r="8.4"/></g></svg>Dashtree</h1></header>
 <main id="viewport" aria-label="Tab tree">
   <div id="empty" hidden><strong>Nothing recorded yet</strong><span>Browse a few pages and they will appear here as a tree.</span></div>
   <div id="canvas"></div>

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "icons": "node tools/make-icons.mjs",
     "test": "vitest run"
   },
   "devDependencies": {
