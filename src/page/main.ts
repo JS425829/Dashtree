@@ -3,6 +3,7 @@ import { CHANGED, type Command, type StateReply } from '../shared/messages';
 import { attachInteractions } from './interact';
 import { layoutForest, type LayoutResult } from './layout';
 import { renderForest } from './render';
+import { matchIds, renderTopBar } from './topbar';
 
 export interface PageContext {
   state: TreeState;
@@ -32,11 +33,24 @@ export function draw(): void {
   empty.hidden = Object.keys(ctx.state.nodes).length > 0;
 }
 
+let query = '';
+
+const topbar = renderTopBar(document.getElementById('topbar')!, ctx.settings, send, (q) => {
+  query = q;
+  applyQuery();
+});
+
+function applyQuery(): void {
+  ctx.matches = query.trim() ? matchIds(ctx.state, query) : null;
+  draw();
+}
+
 export async function refresh(): Promise<void> {
   const reply = await send<StateReply>({ type: 'getState' });
   ctx.state = reply.state;
   ctx.settings = reply.settings;
-  draw();
+  topbar.update(ctx.settings);
+  applyQuery();
 }
 
 canvas.addEventListener('click', (e) => {
