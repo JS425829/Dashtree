@@ -37,6 +37,10 @@ describe('decideNavigation', () => {
     expect(decideNavigation(nav({ qualifiers: ['client_redirect'] }), DEFAULT_SETTINGS)).toBe('update-node');
   });
 
+  test('with redirectsUpdateNode off a client redirect is treated like any other navigation', () => {
+    expect(decideNavigation(nav({ qualifiers: ['client_redirect'] }), { ...DEFAULT_SETTINGS, redirectsUpdateNode: false })).toBe('add-child');
+  });
+
   test('same-origin history-state route changes count, cross-origin ones do not', () => {
     expect(decideNavigation(nav({ fromHistoryState: true, sameOrigin: true }), DEFAULT_SETTINGS)).toBe('add-child');
     expect(decideNavigation(nav({ fromHistoryState: true, sameOrigin: false }), DEFAULT_SETTINGS)).toBe('ignore');
@@ -56,6 +60,11 @@ describe('url helpers', () => {
     const { routeKey } = await import('../src/core/rules');
     expect(routeKey('https://x/a#section-2')).toBe('https://x/a');
     expect(routeKey('https://portal.azure.com/#view/HubsExtension/Browse')).toBe('https://portal.azure.com/#view/HubsExtension/Browse');
+  });
+
+  test('routeKey ignores route-style fragments too when told fragments are not separate pages', async () => {
+    const { routeKey } = await import('../src/core/rules');
+    expect(routeKey('https://portal.azure.com/#view/A/b', false)).toBe('https://portal.azure.com/');
   });
 
   test('stripHash drops the fragment', () => {

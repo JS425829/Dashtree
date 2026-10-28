@@ -90,6 +90,19 @@
   .node.favourite .star { color:var(--star); }
   .node.favourite .star svg { fill:currentColor; }
 
+  /* appearance settings: classes set on the canvas */
+  .solid-lines .connectors .link { stroke-dasharray:none; }
+  .hide-dots .connectors .dot { display:none; }
+  .hide-site .sub { display:none; }
+  .compact .node { border-radius:14px; }
+  .compact .node-main { gap:9px; padding-left:9px; }
+  .compact .tile { width:28px; height:28px; border-radius:9px; }
+  .compact .tile .ico { width:16px; height:16px; }
+  .compact .tile .ico-fallback { font-size:13px; }
+  .compact .label { font-size:13px; }
+  .compact .star { width:34px; }
+  .compact .group-box { border-radius:20px; }
+
   .group-box { position:absolute; border:2px solid; border-radius:28px; pointer-events:none; opacity:.9; }
   .group-label { position:absolute; top:-10px; left:16px; max-width:calc(100% - 32px); overflow:hidden; text-overflow:ellipsis; padding:0 9px; border-radius:8px; font-size:11px; line-height:17px; color:#10211d; font-weight:700; white-space:nowrap; }
   .selection-box { position:absolute; border:1.5px solid var(--accent); border-radius:6px; background:var(--select-fill); pointer-events:none; }
@@ -100,6 +113,9 @@
   .menu hr { border:0; border-top:1px solid var(--line); opacity:.5; margin:6px 4px; }
   .popover { position:absolute; right:36px; top:76px; z-index:10; max-width:min(440px,calc(100vw - 40px)); background:var(--card); border-radius:18px; padding:16px 18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-lg); }
   .popover label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .popover { max-height:calc(100vh - 100px); overflow-y:auto; width:min(440px,calc(100vw - 40px)); }
+  .popover h2 { margin:6px 0 0; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .popover h2:first-child { margin-top:0; }
   .popover input { accent-color:var(--accent); margin-top:3px; }
   .popover .field { align-items:center; justify-content:space-between; }
   .popover .field.stacked { flex-direction:column; align-items:stretch; gap:6px; }

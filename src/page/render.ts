@@ -1,5 +1,5 @@
 import type { NodeId, TreeNode, TreeState } from '../core/types';
-import { DEFAULT_LAYOUT, type LayoutResult } from './layout';
+import { DEFAULT_LAYOUT, type LayoutOpts, type LayoutResult } from './layout';
 
 export interface RenderUi {
   selected: Set<NodeId>;
@@ -80,7 +80,7 @@ function describe(n: TreeNode, text: string, groups: string[]): string {
     .join(', ');
 }
 
-function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: string[]): HTMLElement {
+function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: string[], opts: LayoutOpts): HTMLElement {
   const el = document.createElement('div');
   el.className = ['node', n.tabId === null ? 'hollow' : 'open']
     .concat(ui.selected.has(n.id) ? 'selected' : [], n.favourite ? 'favourite' : [])
@@ -89,8 +89,8 @@ function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: strin
   el.dataset.id = n.id;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  el.style.width = `${DEFAULT_LAYOUT.nodeW}px`;
-  el.style.height = `${DEFAULT_LAYOUT.nodeH}px`;
+  el.style.width = `${opts.nodeW}px`;
+  el.style.height = `${opts.nodeH}px`;
 
   const text = document.createElement('span');
   text.className = 'label';
@@ -127,8 +127,8 @@ function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: strin
   return el;
 }
 
-function makeConnectors(s: TreeState, layout: LayoutResult): SVGSVGElement {
-  const { nodeW, nodeH } = DEFAULT_LAYOUT;
+function makeConnectors(s: TreeState, layout: LayoutResult, opts: LayoutOpts): SVGSVGElement {
+  const { nodeW, nodeH } = opts;
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', 'connectors');
   svg.setAttribute('width', String(layout.width));
@@ -157,8 +157,8 @@ function makeConnectors(s: TreeState, layout: LayoutResult): SVGSVGElement {
 }
 
 /** One outline per member (never a shared box, which would also cover non-members), each labelled with the group name. */
-function makeGroupBoxes(s: TreeState, layout: LayoutResult): HTMLElement[] {
-  const { nodeW, nodeH } = DEFAULT_LAYOUT;
+function makeGroupBoxes(s: TreeState, layout: LayoutResult, opts: LayoutOpts): HTMLElement[] {
+  const { nodeW, nodeH } = opts;
   const boxes: HTMLElement[] = [];
   const layers = new Map<NodeId, number>(); // a node in several groups gets nested outlines
   for (const g of Object.values(s.groups)) {
@@ -190,12 +190,14 @@ function groupNamesByNode(s: TreeState): Map<NodeId, string[]> {
   return out;
 }
 
-export function renderForest(container: HTMLElement, s: TreeState, layout: LayoutResult, ui: RenderUi): void {
+export function renderForest(
+  container: HTMLElement, s: TreeState, layout: LayoutResult, ui: RenderUi, opts: LayoutOpts = DEFAULT_LAYOUT,
+): void {
   container.style.width = `${layout.width}px`;
   container.style.height = `${layout.height}px`;
   const groups = groupNamesByNode(s);
   const nodes = Object.values(s.nodes)
     .filter((n) => layout.pos[n.id])
-    .map((n) => makeNode(n, layout.pos[n.id].x, layout.pos[n.id].y, ui, groups.get(n.id) ?? []));
-  container.replaceChildren(...makeGroupBoxes(s, layout), makeConnectors(s, layout), ...nodes);
+    .map((n) => makeNode(n, layout.pos[n.id].x, layout.pos[n.id].y, ui, groups.get(n.id) ?? [], opts));
+  container.replaceChildren(...makeGroupBoxes(s, layout, opts), makeConnectors(s, layout, opts), ...nodes);
 }

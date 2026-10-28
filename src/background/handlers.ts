@@ -45,40 +45,42 @@ function attachOrAddRoot(s: TreeState, tabId: number, url: string): TreeState {
   return addNode(s, { parentId: null, url, tabId }).state;
 }
 
-function fillPlaceholder(s: TreeState, placeholder: TreeNode, tabId: number, url: string): TreeState {
+function fillPlaceholder(s: TreeState, placeholder: TreeNode, tabId: number, url: string, frag: boolean): TreeState {
   const twin = Object.values(s.nodes).find(
-    (n) => n.id !== placeholder.id && n.parentId === placeholder.parentId && n.tabId === null && routeKey(n.url) === routeKey(url),
+    (n) => n.id !== placeholder.id && n.parentId === placeholder.parentId && n.tabId === null
+      && routeKey(n.url, frag) === routeKey(url, frag),
   );
   if (!twin) return updateNode(s, placeholder.id, { url });
   return updateNode(deleteNodes(s, [placeholder.id], false), twin.id, { tabId });
 }
 
 /** Back/Forward: the tab now shows an earlier or later page, so move the open marker rather than add a node. */
-function applyBackForward(s: TreeState, current: TreeNode, e: CommitEvent): TreeState {
-  if (routeKey(e.url) === routeKey(current.url)) return s;
+function applyBackForward(s: TreeState, current: TreeNode, e: CommitEvent, frag: boolean): TreeState {
+  if (routeKey(e.url, frag) === routeKey(current.url, frag)) return s;
   const family = [...ancestorIds(s, current.id), ...descendantIds(s, current.id)];
-  const match = family.map((id) => s.nodes[id]).find((n) => n.tabId === null && routeKey(n.url) === routeKey(e.url));
+  const match = family.map((id) => s.nodes[id]).find((n) => n.tabId === null && routeKey(n.url, frag) === routeKey(e.url, frag));
   if (!match) return updateNode(s, current.id, { url: e.url });
   return updateNode(updateNode(s, current.id, { tabId: null }), match.id, { tabId: e.tabId });
 }
 
 function applyCommit(s: TreeState, settings: Settings, e: CommitEvent): TreeState {
   const current = nodeForTab(s, e.tabId);
+  const frag = settings.routeFragmentsAreSeparate;
 
   if (!isTrackableUrl(e.url) || isIgnoredUrl(e.url, settings.ignoredSites)) {
     if (!current) return s;
     return current.url === '' ? deleteNodes(s, [current.id], false) : updateNode(s, current.id, { tabId: null });
   }
   if (!current) return attachOrAddRoot(s, e.tabId, e.url);
-  if (current.url === '') return fillPlaceholder(s, current, e.tabId, e.url);
-  if (e.qualifiers.includes('forward_back')) return applyBackForward(s, current, e);
+  if (current.url === '') return fillPlaceholder(s, current, e.tabId, e.url, frag);
+  if (e.qualifiers.includes('forward_back')) return applyBackForward(s, current, e, frag);
 
   const action = decideNavigation(
     {
       transitionType: e.transitionType,
       qualifiers: e.qualifiers,
       fromHistoryState: e.fromHistoryState,
-      hashOnly: routeKey(e.url) === routeKey(current.url),
+      hashOnly: routeKey(e.url, frag) === routeKey(current.url, frag),
       sameOrigin: sameOrigin(e.url, current.url),
     },
     settings,
@@ -91,19 +93,19 @@ function applyCommit(s: TreeState, settings: Settings, e: CommitEvent): TreeStat
       return updateNode(s, current.id, { url: e.url });
     case 'add-child': {
       const hollowed = updateNode(s, current.id, { tabId: null });
-      const key = routeKey(e.url);
+      const key = routeKey(e.url, frag);
       const revisitsChild = Object.values(s.nodes).some(
-        (n) => n.parentId === current.id && routeKey(n.url) === key && (n.tabId === null || n.tabId === e.tabId),
+        (n) => n.parentId === current.id && routeKey(n.url, frag) === key && (n.tabId === null || n.tabId === e.tabId),
       );
       // going back to a page earlier on this same path moves the tab onto it instead of adding a duplicate
-      const earlier = revisitsChild
+      const earlier = !settings.reuseEarlierPage || revisitsChild
         ? undefined
-        : ancestorIds(s, current.id).map((id) => s.nodes[id]).find((n) => n.tabId === null && routeKey(n.url) === key);
+        : ancestorIds(s, current.id).map((id) => s.nodes[id]).find((n) => n.tabId === null && routeKey(n.url, frag) === key);
       if (earlier) return updateNode(hollowed, earlier.id, { tabId: e.tabId });
       // single-page navigation changes neither the favicon nor always the title, so the child starts with its parent's
       return reuseOrAddChild(hollowed, current.id, {
         url: e.url, tabId: e.tabId, title: current.title, favIconUrl: current.favIconUrl,
-      }).state;
+      }, undefined, frag).state;
     }
     case 'new-root':
       return attachOrAddRoot(updateNode(s, current.id, { tabId: null }), e.tabId, e.url);
@@ -214,7 +216,7 @@ export async function handleCommand(store: Store, c: Command): Promise<void> {
     case 'setNote':
       return store.mutate((s) => setNote(s, c.id, c.note));
     case 'clearHollow':
-      return store.mutate((s) => clearHollow(s, { clearFavouriteChildren: true }));
+      return store.mutate((s, settings) => clearHollow(s, { clearFavouriteChildren: settings.clearRemovesFavouriteChildren }));
     case 'createGroup':
       return store.mutate((s) => createGroup(s, c.name, c.colour, c.nodeIds).state);
     case 'addToGroup':

@@ -49,6 +49,70 @@ describe('theme switch', () => {
   });
 });
 
+describe('on/off settings', () => {
+  const cases: [string, string][] = [
+    ['same tab adds a new node', 'sameTabAddsNode'],
+    ['after #', 'routeFragmentsAreSeparate'],
+    ['earlier page', 'reuseEarlierPage'],
+    ['Redirects update', 'redirectsUpdateNode'],
+    ['After a restart', 'wipeHollowAfterRestart'],
+    ['When a tab closes', 'hollowOnTabClose'],
+    ['hollow children of favourites', 'clearRemovesFavouriteChildren'],
+    ['Ask before deleting', 'confirmBeforeDeleting'],
+    ['Compact cards', 'compactCards'],
+    ['site name', 'showSiteName'],
+    ['open/closed dot', 'showStatusDots'],
+    ['Dashed connector', 'dashedConnectors'],
+  ];
+  const checkboxFor = (text: string) =>
+    [...document.querySelectorAll('label')].find((l) => l.textContent!.includes(text))!.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+
+  test.each(cases)('"%s" is a checkbox that sends %s', (text, key) => {
+    const { send } = setup();
+    const box = checkboxFor(text);
+    box.checked = !box.checked;
+    box.dispatchEvent(new Event('change'));
+    expect(send).toHaveBeenCalledWith({ type: 'setSettings', settings: { [key]: box.checked } });
+  });
+
+  test('every checkbox shows the current value', () => {
+    setup({ ...DEFAULT_SETTINGS, compactCards: true, showSiteName: false });
+    expect(checkboxFor('Compact cards').checked).toBe(true);
+    expect(checkboxFor('site name').checked).toBe(false);
+    expect(checkboxFor('same tab adds a new node').checked).toBe(true);
+  });
+
+  test('settings are grouped under Recording, Cleanup and Appearance headings', () => {
+    setup();
+    expect([...document.querySelectorAll('.popover h2')].map((h) => h.textContent)).toEqual(['Recording', 'Cleanup', 'Appearance', 'Ignored sites']);
+  });
+});
+
+describe('Clear hollow nodes confirmation', () => {
+  const clearButton = () => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Clear hollow nodes')!;
+
+  test('asks first when confirmBeforeDeleting is on, and does nothing if declined', () => {
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const { send } = setup();
+    clearButton().click();
+    expect(ask).toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalledWith({ type: 'clearHollow' });
+    ask.mockReturnValue(true);
+    clearButton().click();
+    expect(send).toHaveBeenCalledWith({ type: 'clearHollow' });
+    ask.mockRestore();
+  });
+
+  test('does not ask when confirmBeforeDeleting is off', () => {
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const { send } = setup({ ...DEFAULT_SETTINGS, confirmBeforeDeleting: false });
+    clearButton().click();
+    expect(ask).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith({ type: 'clearHollow' });
+    ask.mockRestore();
+  });
+});
+
 describe('ignored sites setting', () => {
   test('shows the current list one site per line', () => {
     setup({ ...DEFAULT_SETTINGS, ignoredSites: ['bank.example', 'mail.example.com'] });

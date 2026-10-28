@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { nodesInRect } from '../src/page/interact';
+import { needsConfirm, nodesInRect } from '../src/page/interact';
 import type { LayoutResult } from '../src/page/layout';
 
 const layout: LayoutResult = {
@@ -7,6 +7,18 @@ const layout: LayoutResult = {
   width: 300,
   height: 140,
 };
+
+describe('needsConfirm', () => {
+  test('a single plain delete never asks; several nodes or delete-with-children ask when the setting is on', () => {
+    expect(needsConfirm(1, false, true)).toBe(false);
+    expect(needsConfirm(3, false, true)).toBe(true);
+    expect(needsConfirm(1, true, true)).toBe(true);
+  });
+
+  test('nothing asks when the setting is off', () => {
+    expect(needsConfirm(5, true, false)).toBe(false);
+  });
+});
 
 describe('nodesInRect', () => {
   test('returns only the nodes whose box intersects the rectangle', () => {

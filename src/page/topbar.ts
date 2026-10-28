@@ -8,13 +8,42 @@ export function matchIds(s: TreeState, query: string): Set<NodeId> {
   return new Set(searchNodes(s, query).map((n) => n.id));
 }
 
-type BooleanSetting = 'sameTabAddsNode' | 'wipeHollowAfterRestart' | 'hollowOnTabClose';
+type BooleanSetting = { [K in keyof Settings]: Settings[K] extends boolean ? K : never }[keyof Settings];
 
-const SETTING_LABELS: [BooleanSetting, string][] = [
-  ['sameTabAddsNode', 'Clicking a link in the same tab adds a new node (off: update the current node)'],
-  ['wipeHollowAfterRestart', 'After a restart, wipe hollow nodes once a tab is opened (favourites are kept)'],
-  ['hollowOnTabClose', 'When a tab closes, keep its node as a hollow node (off: remove it)'],
-];
+interface Section {
+  title: string;
+  items: [BooleanSetting, string][];
+}
+
+const RECORDING: Section = {
+  title: 'Recording',
+  items: [
+    ['sameTabAddsNode', 'Clicking a link in the same tab adds a new node (off: update the current node)'],
+    ['routeFragmentsAreSeparate', 'Treat route changes after # as separate pages, such as Azure Portal blades (off: ignore them)'],
+    ['reuseEarlierPage', 'Going back to an earlier page on the same path reuses its node instead of duplicating it'],
+    ['redirectsUpdateNode', 'Redirects update the current node instead of adding a node'],
+  ],
+};
+
+const CLEANUP: Section = {
+  title: 'Cleanup',
+  items: [
+    ['wipeHollowAfterRestart', 'After a restart, wipe hollow nodes once a tab is opened (favourites are kept)'],
+    ['hollowOnTabClose', 'When a tab closes, keep its node as a hollow node (off: remove it)'],
+    ['clearRemovesFavouriteChildren', 'Clear hollow nodes also removes the hollow children of favourites'],
+    ['confirmBeforeDeleting', 'Ask before deleting several nodes, deleting with children, or clearing hollow nodes'],
+  ],
+};
+
+const APPEARANCE: Section = {
+  title: 'Appearance',
+  items: [
+    ['compactCards', 'Compact cards'],
+    ['showSiteName', 'Show the site name under each title'],
+    ['showStatusDots', 'Show the open/closed dot above each card'],
+    ['dashedConnectors', 'Dashed connector lines (off: solid)'],
+  ],
+};
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const SUN = 'M12 7a5 5 0 100 10 5 5 0 000-10zM12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4';
@@ -48,6 +77,8 @@ export function renderTopBar(
   send: (c: Command) => unknown,
   onQuery: (q: string) => void,
 ): TopBar {
+  let current: Settings = settings;
+
   const search = document.createElement('input');
   search.type = 'search';
   search.placeholder = 'Search tabs, URLs and notes…';
@@ -58,8 +89,7 @@ export function renderTopBar(
   spacer.className = 'spacer';
 
   // light/dark switch: shows the sun while dark (click for light) and the moon while light
-  let current: Theme = settings.theme;
-  const shown = () => effectiveTheme(current, systemPrefersDark());
+  const shown = () => effectiveTheme(current.theme, systemPrefersDark());
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'theme-toggle';
@@ -72,9 +102,10 @@ export function renderTopBar(
 
   const clear = document.createElement('button');
   clear.textContent = 'Clear hollow nodes';
-  clear.title = 'Remove every hollow node except favourites. Hollow children of favourites are removed too.';
+  clear.title = 'Remove every hollow node except favourites (the Cleanup settings say whether their hollow children go too)';
   clear.addEventListener('click', () => {
-    if (confirm('Remove all hollow nodes except favourites themselves? Hollow children of favourites will be removed too.')) {
+    const extra = current.clearRemovesFavouriteChildren ? ' Hollow children of favourites will be removed too.' : '';
+    if (!current.confirmBeforeDeleting || confirm(`Remove all hollow nodes except favourites themselves?${extra}`)) {
       void send({ type: 'clearHollow' });
     }
   });
@@ -101,16 +132,26 @@ export function renderTopBar(
     }
   });
 
+  const heading = (text: string) => {
+    const h = document.createElement('h2');
+    h.textContent = text;
+    return h;
+  };
+
   const boxes = new Map<BooleanSetting, HTMLInputElement>();
-  for (const [key, text] of SETTING_LABELS) {
-    const row = document.createElement('label');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.addEventListener('change', () => void send({ type: 'setSettings', settings: { [key]: box.checked } }));
-    row.append(box, ` ${text}`);
-    popover.append(row);
-    boxes.set(key, box);
-  }
+  const checkboxes = (section: Section) => {
+    const rows: HTMLElement[] = [];
+    for (const [key, text] of section.items) {
+      const row = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.addEventListener('change', () => void send({ type: 'setSettings', settings: { [key]: box.checked } }));
+      row.append(box, ` ${text}`);
+      rows.push(row);
+      boxes.set(key, box);
+    }
+    return rows;
+  };
 
   const themeRow = document.createElement('label');
   themeRow.className = 'field';
@@ -133,15 +174,20 @@ export function renderTopBar(
   sites.placeholder = 'bank.example\nmail.example.com';
   sites.setAttribute('aria-label', 'Ignored sites');
   sites.addEventListener('change', () => void send({ type: 'setSettings', settings: { ignoredSites: parseSites(sites.value) } }));
-  sitesRow.append('Ignored sites: never recorded (one per line; subdomains included)', sites);
+  sitesRow.append('Never recorded. One site per line; subdomains are included.', sites);
 
-  popover.append(themeRow, sitesRow);
+  popover.append(
+    heading(RECORDING.title), ...checkboxes(RECORDING),
+    heading(CLEANUP.title), ...checkboxes(CLEANUP),
+    heading(APPEARANCE.title), themeRow, ...checkboxes(APPEARANCE),
+    heading('Ignored sites'), sitesRow,
+  );
   el.append(search, spacer, toggle, clear, gear);
   document.body.append(popover);
 
   const bar: TopBar = {
     update(s) {
-      current = s.theme;
+      current = s;
       toggle.setAttribute('aria-checked', String(shown() === 'dark'));
       for (const [key, box] of boxes) box.checked = s[key];
       themeSelect.value = s.theme;

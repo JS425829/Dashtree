@@ -58,9 +58,10 @@ export function reuseOrAddChild(
   parentId: NodeId | null,
   p: Omit<NewNode, 'parentId'>,
   now = Date.now(),
+  fragmentsAreSeparate = true,
 ): { state: TreeState; id: NodeId } {
   const existing = childrenOf(s, parentId).find(
-    (n) => routeKey(n.url) === routeKey(p.url) && (n.tabId === null || n.tabId === p.tabId),
+    (n) => routeKey(n.url, fragmentsAreSeparate) === routeKey(p.url, fragmentsAreSeparate) && (n.tabId === null || n.tabId === p.tabId),
   );
   if (existing) return { state: patchNode(s, existing.id, { tabId: p.tabId }), id: existing.id };
   return addNode(s, { ...p, parentId }, now);

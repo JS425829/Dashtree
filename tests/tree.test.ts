@@ -47,6 +47,13 @@ describe('adding and reusing nodes', () => {
     expect(a2.id).toBe(a.id);
   });
 
+  test('with fragments not treated as pages, Portal routes under one URL are reused as one child', () => {
+    const root = add(EMPTY_STATE, null, 'https://portal.azure.com/', 1);
+    const a = reuseOrAddChild(root.state, root.id, { url: 'https://portal.azure.com/#view/A/x', tabId: null });
+    const b = reuseOrAddChild(a.state, root.id, { url: 'https://portal.azure.com/#view/B/y', tabId: null }, undefined, false);
+    expect(b.id).toBe(a.id);
+  });
+
   test('reuse does not steal a child that another open tab is showing', () => {
     const root = add(EMPTY_STATE, null, 'https://x/', 1);
     const first = reuseOrAddChild(root.state, root.id, { url: 'https://x/a', tabId: 2 });

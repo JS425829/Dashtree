@@ -1,7 +1,7 @@
 import { hollowDescendants } from '../core/tree';
 import type { NodeId, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
-import { DEFAULT_LAYOUT, type LayoutResult } from './layout';
+import type { LayoutOpts, LayoutResult } from './layout';
 import { showMenu, type MenuItem } from './menu';
 
 export interface Rect {
@@ -14,7 +14,16 @@ export interface Rect {
 export interface InteractCtx {
   state: TreeState;
   layout: LayoutResult;
+  /** Card size in use, for hit-testing the selection box. */
+  opts: LayoutOpts;
+  /** The confirmBeforeDeleting setting. */
+  confirmDelete: boolean;
   selected: Set<NodeId>;
+}
+
+/** A single plain delete never asks; several nodes or delete-with-children ask when the setting is on. */
+export function needsConfirm(count: number, withChildren: boolean, enabled: boolean): boolean {
+  return enabled && (count > 1 || withChildren);
 }
 
 const GROUP_COLOURS = ['#4da3ff', '#f5c542', '#7bd88f', '#ff7b72', '#c69cff', '#ffa657'];
@@ -34,7 +43,7 @@ function buildMenu(
 ): MenuItem[] {
   const del = (withChildren: boolean) => () => {
     const what = `${ids.length} node${ids.length === 1 ? '' : 's'}${withChildren ? ' and everything under them' : ''}`;
-    if ((ids.length > 1 || withChildren) && !confirm(`Delete ${what}?`)) return;
+    if (needsConfirm(ids.length, withChildren, c.confirmDelete) && !confirm(`Delete ${what}?`)) return;
     void send({ type: 'delete', ids, withChildren });
   };
   const items: MenuItem[] = [
@@ -89,7 +98,6 @@ export function attachInteractions(
   onSelectionChange: () => void,
 ): void {
   const viewport = canvas.parentElement as HTMLElement;
-  const { nodeW, nodeH } = DEFAULT_LAYOUT;
   let drag: Drag | null = null;
   let moved = false;
 
@@ -138,7 +146,7 @@ export function attachInteractions(
       const p = canvasPoint(e);
       drag.el.remove();
       c.selected.clear();
-      if (moved) nodesInRect(c.layout, nodeW, nodeH, { x1: drag.x, y1: drag.y, x2: p.x, y2: p.y }).forEach((id) => c.selected.add(id));
+      if (moved) nodesInRect(c.layout, c.opts.nodeW, c.opts.nodeH, { x1: drag.x, y1: drag.y, x2: p.x, y2: p.y }).forEach((id) => c.selected.add(id));
       onSelectionChange();
     } else {
       viewport.classList.remove('panning');

@@ -76,6 +76,7 @@ Edge tabs are normally a flat strip or a grouped list. Jude works across many re
 1. Same-tab navigation: add new node (default) vs update current node.
 2. Wipe non-favourite hollow nodes once a tab is opened after restart (default on).
 3. When a tab is closed, turn its node hollow so it can be selected and deleted (default on). Off means the node is removed when its tab closes (my reading of this setting).
+4. Added later, all in the Settings panel under Recording / Cleanup / Appearance (defaults in brackets): route changes after `#` count as separate pages (on); going back to an earlier page on the same path reuses its node (on); redirects update the current node (on); Clear hollow nodes also removes favourites' hollow children (on); ask before multi-delete, delete-with-children and Clear (on); theme System/Light/Dark (System); compact cards (off); show site name (on); show open/closed dots (on); dashed connector lines (on); ignored sites (empty).
 
 ## Constraints and decisions
 
