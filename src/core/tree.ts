@@ -140,6 +140,16 @@ export const setFavourite = (s: TreeState, id: NodeId, v: boolean): TreeState =>
 export const setNote = (s: TreeState, id: NodeId, note: string): TreeState =>
   patchNode(s, id, { note });
 
+/** Gives a node a name of the user's choosing; an empty name goes back to following the page title. */
+export function renameNode(s: TreeState, id: NodeId, title: string): TreeState {
+  const node = s.nodes[id];
+  if (!node) return s;
+  const name = title.trim();
+  if (name) return patchNode(s, id, { customTitle: name });
+  const { customTitle: _dropped, ...rest } = node;
+  return { ...s, nodes: { ...s.nodes, [id]: rest } };
+}
+
 export function createGroup(
   s: TreeState,
   name: string,
@@ -160,6 +170,6 @@ export function searchNodes(s: TreeState, query: string): TreeNode[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return Object.values(s.nodes).filter((n) =>
-    [n.title, n.url, n.note].some((f) => f.toLowerCase().includes(q)),
+    [n.title, n.url, n.note, n.customTitle ?? ''].some((f) => f.toLowerCase().includes(q)),
   );
 }

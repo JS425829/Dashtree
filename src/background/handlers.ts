@@ -1,7 +1,7 @@
 import { decideNavigation, isIgnoredUrl, isTrackableUrl, routeKey } from '../core/rules';
 import {
   addNode, addToGroup, ancestorIds, clearHollow, closeTab, createGroup, deleteNodes, descendantIds, nodeForTab,
-  reuseOrAddChild, setFavourite, setNote, updateNode,
+  renameNode, reuseOrAddChild, setFavourite, setNote, updateNode,
 } from '../core/tree';
 import type { NodeId, Settings, TreeNode, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
@@ -215,6 +215,8 @@ export async function handleCommand(store: Store, c: Command): Promise<void> {
       return store.mutate((s) => setFavourite(s, c.id, c.value));
     case 'setNote':
       return store.mutate((s) => setNote(s, c.id, c.note));
+    case 'rename':
+      return store.mutate((s) => renameNode(s, c.id, c.title));
     case 'clearHollow':
       return store.mutate((s, settings) => clearHollow(s, { clearFavouriteChildren: settings.clearRemovesFavouriteChildren }));
     case 'createGroup':

@@ -6,6 +6,8 @@ export interface TreeNode {
   parentId: NodeId | null;
   url: string;
   title: string;
+  /** A name the user gave this node; shown instead of `title`, which keeps following the page. */
+  customTitle?: string;
   favIconUrl: string;
   tabId: number | null;
   favourite: boolean;

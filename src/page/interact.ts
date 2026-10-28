@@ -2,6 +2,7 @@ import { isIgnoredUrl, isTrackableUrl } from '../core/rules';
 import { hollowDescendants } from '../core/tree';
 import type { NodeId, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
+import { displayName } from './display';
 import type { LayoutOpts, LayoutResult } from './layout';
 import { showMenu, type MenuItem } from './menu';
 import { showToast } from './toast';
@@ -72,6 +73,14 @@ export function buildMenu(
   if (ids.length === 1) {
     const id = ids[0];
     items.push(
+      {
+        label: 'Rename',
+        action: () => {
+          const node = c.state.nodes[id];
+          const name = prompt('Name for this node (leave empty to use the page title)', node.url || node.customTitle ? displayName(node) : '');
+          if (name !== null) void send({ type: 'rename', id, title: name });
+        },
+      },
       {
         label: 'Add notes',
         action: () => {

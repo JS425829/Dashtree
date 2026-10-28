@@ -6,6 +6,7 @@ export type Command =
   | { type: 'delete'; ids: NodeId[]; withChildren: boolean }
   | { type: 'setFavourite'; id: NodeId; value: boolean }
   | { type: 'setNote'; id: NodeId; note: string }
+  | { type: 'rename'; id: NodeId; title: string }
   | { type: 'clearHollow' }
   | { type: 'createGroup'; name: string; colour: string; nodeIds: NodeId[] }
   | { type: 'addToGroup'; groupId: string; nodeIds: NodeId[] }

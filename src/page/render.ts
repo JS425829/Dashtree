@@ -1,4 +1,5 @@
 import type { NodeId, TreeNode, TreeState } from '../core/types';
+import { displayName } from './display';
 import { DEFAULT_LAYOUT, type LayoutOpts, type LayoutResult } from './layout';
 
 export interface RenderUi {
@@ -13,15 +14,6 @@ const DOT_GAP = 12; // distance from a card's top edge up to its timeline dot
 
 function hostOf(url: string): string {
   try { return new URL(url).hostname; } catch { return ''; }
-}
-
-function label(n: TreeNode): string {
-  if (n.title) return n.title;
-  if (!n.url) return 'Loading…';
-  try {
-    const u = new URL(n.url);
-    return u.hostname + (u.pathname === '/' ? '' : u.pathname);
-  } catch { return n.url; }
 }
 
 /** A stable pastel hue per site, so each site's tile keeps its colour. */
@@ -94,7 +86,7 @@ function makeNode(n: TreeNode, x: number, y: number, ui: RenderUi, groups: strin
 
   const text = document.createElement('span');
   text.className = 'label';
-  text.textContent = label(n);
+  text.textContent = displayName(n);
   const sub = document.createElement('span');
   sub.className = 'sub';
   sub.textContent = hostOf(n.url);

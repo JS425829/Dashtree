@@ -55,7 +55,7 @@ Edge tabs are normally a flat strip or a grouped list. Jude works across many re
 - **Pan:** click and hold on empty space, then drag.
 - **Select:** hold Ctrl and drag to draw a selection box; Ctrl+click toggles single nodes.
 - **Favourite:** a star on any node (root or branch).
-- **Right-click a node** shows: **Delete** (removes just that node), **Delete with children** (removes the node and all its descendants), **Add notes** (free-text note on the node), and **Select hollow children** (selects every hollow descendant so they can be deleted together). Right-click on a selection still offers create/add to group.
+- **Right-click a node** shows: **Delete** (removes just that node), **Delete with children** (removes the node and all its descendants), **Rename** (a custom name shown on the card instead of the page title; the page title keeps updating underneath, an empty name restores it; single node only), **Add notes** (free-text note on the node), and **Select hollow children** (selects every hollow descendant so they can be deleted together). Right-click on a selection still offers create/add to group.
 - Hollow nodes can be selected (Ctrl+click or selection box) and deleted.
 - Top-bar button **Clear hollow nodes** (see Persistence).
 - **Groups:** right-click a selection to create a group or add to an existing one. A group is a named, coloured outline/label over its nodes, can include nodes from different trees, and is for categorisation only.

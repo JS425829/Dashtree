@@ -1,6 +1,6 @@
 // Preview-only stand-in for the extension runtime: serves sample data to the real page code and applies its commands in memory.
 import {
-  addNode, addToGroup, clearHollow, createGroup, deleteNodes, setFavourite, setNote, updateNode,
+  addNode, addToGroup, clearHollow, createGroup, deleteNodes, renameNode, setFavourite, setNote, updateNode,
 } from '../src/core/tree';
 import { DEFAULT_SETTINGS, EMPTY_STATE, type NodeId, type TreeState } from '../src/core/types';
 import { CHANGED, type Command } from '../src/shared/messages';
@@ -50,6 +50,7 @@ async function handle(c: Command): Promise<unknown> {
     case 'delete': state = deleteNodes(state, c.ids, c.withChildren); break;
     case 'setFavourite': state = setFavourite(state, c.id, c.value); break;
     case 'setNote': state = setNote(state, c.id, c.note); break;
+    case 'rename': state = renameNode(state, c.id, c.title); break;
     case 'clearHollow': state = clearHollow(state); break;
     case 'createGroup': state = createGroup(state, c.name, c.colour, c.nodeIds).state; break;
     case 'addToGroup': state = addToGroup(state, c.groupId, c.nodeIds); break;

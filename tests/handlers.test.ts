@@ -251,6 +251,18 @@ describe('commands', () => {
     expect(m.state().nodes[kid.id]).toBeUndefined();
   });
 
+  test('the rename command sets the name, and a later page-title update does not replace it', async () => {
+    const m = memoryStore();
+    await commit(m, 1, 'https://x/a', { transitionType: 'typed' });
+    const id = nodeForTab(m.state(), 1)!.id;
+    await handleCommand(m.store, { type: 'rename', id, title: 'My page' });
+    await onTabUpdated(m.store, 1, { title: 'Some page title' });
+    expect(m.state().nodes[id].customTitle).toBe('My page');
+    expect(m.state().nodes[id].title).toBe('Some page title');
+    await handleCommand(m.store, { type: 'rename', id, title: '' });
+    expect(m.state().nodes[id].customTitle).toBeUndefined();
+  });
+
   test('createGroup then addToGroup via commands', async () => {
     const m = memoryStore();
     await commit(m, 1, 'https://x/a', { transitionType: 'typed' });

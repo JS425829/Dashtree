@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test } from 'vitest';
-import { addNode, createGroup, setFavourite, setNote } from '../src/core/tree';
+import { addNode, createGroup, renameNode, setFavourite, setNote } from '../src/core/tree';
 import { EMPTY_STATE, DEFAULT_SETTINGS } from '../src/core/types';
 import { layoutForest } from '../src/page/layout';
 import { renderForest } from '../src/page/render';
@@ -68,6 +68,13 @@ describe('tree page accessibility', () => {
     const g = createGroup(ids.state, 'Costs', '#4da3ff', [ids.open, ids.hollow]);
     renderForest(container, g.state, layoutForest(g.state), { selected: new Set(), matches: null });
     expect(container.querySelectorAll('.group-box')).toHaveLength(2);
+  });
+
+  test('a renamed node shows its custom name on the card and in its accessible name', () => {
+    const renamed = renameNode(ids.state, ids.open, 'Prod costs');
+    renderForest(container, renamed, layoutForest(renamed), { selected: new Set(), matches: null });
+    expect(node(ids.open).querySelector('.label')!.textContent).toBe('Prod costs');
+    expect(node(ids.open).querySelector('button.node-main')!.getAttribute('aria-label')).toBe('Prod costs, open tab, favourite, has a note');
   });
 
   test('group membership is announced and shown as text, not colour alone', () => {

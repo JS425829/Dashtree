@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   addNode, addToGroup, clearHollow, closeTab, createGroup, deleteNodes, hollowDescendants,
-  nodeForTab, protectedIds, reuseOrAddChild, searchNodes, setFavourite, setNote, updateNode,
+  nodeForTab, protectedIds, renameNode, reuseOrAddChild, searchNodes, setFavourite, setNote, updateNode,
 } from '../src/core/tree';
 import { DEFAULT_SETTINGS, EMPTY_STATE, type NodeId, type TreeState } from '../src/core/types';
 
@@ -191,6 +191,36 @@ describe('hollow nodes, favourites and clearing', () => {
     const s2 = clearHollow(closeTab(s, 1, DEFAULT_SETTINGS));
     expect(s2.nodes[a]).toBeUndefined();
     expect(s2.nodes[b].parentId).toBeNull();
+  });
+});
+
+describe('renaming', () => {
+  test('renameNode stores the trimmed name as a custom title', () => {
+    const { s, a } = chain();
+    expect(renameNode(s, a, '  Prod costs  ').nodes[a].customTitle).toBe('Prod costs');
+  });
+
+  test('an empty name clears the custom title, going back to the page title', () => {
+    const { s, a } = chain();
+    const named = renameNode(s, a, 'Prod costs');
+    expect(renameNode(named, a, '   ').nodes[a].customTitle).toBeUndefined();
+  });
+
+  test('the page title changing later does not touch the custom name', () => {
+    const { s, a } = chain();
+    const renamed = updateNode(renameNode(s, a, 'Prod costs'), a, { title: 'Cost Management - Azure' });
+    expect(renamed.nodes[a].customTitle).toBe('Prod costs');
+    expect(renamed.nodes[a].title).toBe('Cost Management - Azure');
+  });
+
+  test('renaming an unknown node changes nothing', () => {
+    const { s } = chain();
+    expect(renameNode(s, 'nope', 'x')).toBe(s);
+  });
+
+  test('search finds a node by its custom name', () => {
+    const { s, a } = chain();
+    expect(searchNodes(renameNode(s, a, 'Quarterly review'), 'quarterly').map((n) => n.id)).toEqual([a]);
   });
 });
 

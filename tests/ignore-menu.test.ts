@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { addNode } from '../src/core/tree';
+import { addNode, renameNode } from '../src/core/tree';
 import { EMPTY_STATE, type TreeState } from '../src/core/types';
 import { buildMenu, ignoreCandidates, type InteractCtx } from '../src/page/interact';
 import { DEFAULT_LAYOUT, layoutForest } from '../src/page/layout';
@@ -78,7 +78,55 @@ describe('the Ignore item in the node menu', () => {
   test('the existing menu items are all still there', () => {
     const { s, ids } = stateWith('https://portal.azure.com/a');
     expect(labels(buildMenu(ids, ctxFor(s), vi.fn(), () => {}))).toEqual([
-      'Delete', 'Delete with children', 'Add notes', 'Select hollow children', 'Create group…', 'Ignore portal.azure.com',
+      'Delete', 'Delete with children', 'Rename', 'Add notes', 'Select hollow children', 'Create group…', 'Ignore portal.azure.com',
     ]);
+  });
+});
+
+describe('the Rename item in the node menu', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+
+  const renameItem = (s: TreeState, ids: string[], send = vi.fn()) => ({ send, item: find(buildMenu(ids, ctxFor(s), send, () => {}), 'Rename') });
+
+  test('asks for a name, starting from what the card shows now, and sends it', () => {
+    const { s, ids } = stateWith('https://portal.azure.com/a');
+    const ask = vi.spyOn(window, 'prompt').mockReturnValue('Prod costs');
+    const { send, item } = renameItem(s, ids);
+    item.action();
+    expect(ask.mock.calls[0][1]).toBe('portal.azure.com/a'); // what the card shows for a page with no title
+    expect(send).toHaveBeenCalledWith({ type: 'rename', id: ids[0], title: 'Prod costs' });
+    ask.mockRestore();
+  });
+
+  test('prefills a node that already has a custom name with that name', () => {
+    let { s, ids } = stateWith('https://portal.azure.com/a');
+    s = renameNode(s, ids[0], 'Prod costs');
+    const ask = vi.spyOn(window, 'prompt').mockReturnValue('Prod costs');
+    renameItem(s, ids).item.action();
+    expect(ask.mock.calls[0][1]).toBe('Prod costs');
+    ask.mockRestore();
+  });
+
+  test('an empty answer is sent as an empty name, which restores the page title', () => {
+    const { s, ids } = stateWith('https://portal.azure.com/a');
+    const ask = vi.spyOn(window, 'prompt').mockReturnValue('');
+    const { send, item } = renameItem(s, ids);
+    item.action();
+    expect(send).toHaveBeenCalledWith({ type: 'rename', id: ids[0], title: '' });
+    ask.mockRestore();
+  });
+
+  test('cancelling the prompt changes nothing', () => {
+    const { s, ids } = stateWith('https://portal.azure.com/a');
+    const ask = vi.spyOn(window, 'prompt').mockReturnValue(null);
+    const { send, item } = renameItem(s, ids);
+    item.action();
+    expect(send).not.toHaveBeenCalled();
+    ask.mockRestore();
+  });
+
+  test('is only offered for a single node', () => {
+    const { s, ids } = stateWith('https://portal.azure.com/a', 'https://github.com/x');
+    expect(labels(buildMenu(ids, ctxFor(s), vi.fn(), () => {}))).not.toContain('Rename');
   });
 });
