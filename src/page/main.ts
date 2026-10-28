@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS, EMPTY_STATE, type NodeId, type Settings, type TreeState } from '../core/types';
 import { CHANGED, type Command, type StateReply } from '../shared/messages';
+import { attachInteractions } from './interact';
 import { layoutForest, type LayoutResult } from './layout';
 import { renderForest } from './render';
 
@@ -50,6 +51,8 @@ canvas.addEventListener('click', (e) => {
   if (e.ctrlKey || e.metaKey) return; // reserved for selection
   void send({ type: 'activate', id });
 });
+
+attachInteractions(canvas, () => ctx, send, draw);
 
 chrome.runtime.onMessage.addListener((m) => {
   if (m?.type === CHANGED) void refresh();
