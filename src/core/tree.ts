@@ -1,3 +1,4 @@
+import { stripHash } from './rules';
 import type { Group, NodeId, Settings, TreeNode, TreeState } from './types';
 
 export interface NewNode {
@@ -7,8 +8,6 @@ export interface NewNode {
   favIconUrl?: string;
   tabId: number | null;
 }
-
-const stripHash = (url: string) => url.split('#')[0];
 
 function childrenOf(s: TreeState, id: NodeId | null): TreeNode[] {
   return Object.values(s.nodes).filter((n) => n.parentId === id);
