@@ -44,6 +44,24 @@ describe('the GitHub Pages site', () => {
     expect(html).toContain(REPO);
   });
 
+  test('sends people to the GitHub releases to download it, and never tells them to build it', () => {
+    const html = page();
+    const install = /<section id="install"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(install).toMatch(new RegExp(`<a [^>]*class="btn primary"[^>]*href="${REPO}/releases/latest"|<a [^>]*href="${REPO}/releases/latest"[^>]*class="btn primary"`));
+    expect(html).toContain(`href="${REPO}/releases"`); // the footer link
+    for (const asset of ['histo-tree-chromium', 'histo-tree-firefox']) expect(install, asset).toContain(asset);
+    expect(html).not.toMatch(/npm (install|run)/);
+    expect(html).not.toContain('dist-firefox');
+    expect(html).not.toMatch(/<pre[\s>]/);
+    expect(html).not.toMatch(/\bbuild it\b/i);
+  });
+
+  test('the release link sits at the bottom of the page: in the install section and the footer, after the demo', () => {
+    const html = page();
+    expect(html.lastIndexOf('/releases')).toBeGreaterThan(html.indexOf('id="demo"'));
+    expect(/<footer[\s\S]*<\/footer>/.exec(html)?.[0]).toContain(`${REPO}/releases`);
+  });
+
   test('is honest about Firefox, which has not yet been run in a real Firefox', () => {
     expect(page()).toMatch(/Firefox[^<]{0,40}experimental|experimental[^<]{0,40}Firefox/i);
   });

@@ -76,8 +76,6 @@
   .install ol { margin:0; padding-left:20px; color:var(--muted); font-size:16px; }
   .install li { margin:6px 0; }
   code { background:var(--code); border-radius:8px; padding:2px 7px; font:0.9em ui-monospace,"Cascadia Code",Consolas,monospace; color:var(--text); overflow-wrap:anywhere; }
-  pre { background:var(--code); border-radius:16px; padding:16px 20px; overflow-x:auto; margin:14px 0 0; }
-  pre code { background:none; padding:0; }
   .note { margin-top:18px; color:var(--muted); font-size:15px; }
 
   footer { margin-top:64px; padding:30px 0 48px; color:var(--muted); font-size:15px; border-top:1px solid var(--line); display:flex; flex-wrap:wrap; gap:8px 24px; justify-content:space-between; }
@@ -180,37 +178,36 @@
   <section id="install" aria-labelledby="install-h">
     <div class="wrap">
       <h2 id="install-h">Get it</h2>
-      <p class="sub">Store listings are not available yet, so for now you build it once and load it into your browser.</p>
-      <pre><code>npm install
-npm run build</code></pre>
-      <p class="note">That creates <code>dist</code> for Edge and Chrome, and <code>dist-firefox</code> for Firefox.</p>
+      <p class="sub">Download the latest release from GitHub, then load it into your browser. It takes about a minute.</p>
+      <p><a class="btn primary" href="https://github.com/JS425829/Dashtree/releases/latest">Download the latest release</a></p>
+      <p class="note">Each release has two files: <code>histo-tree-chromium-&lt;version&gt;.zip</code> for Edge and Chrome, and <code>histo-tree-firefox-&lt;version&gt;.zip</code> for Firefox.</p>
       <div class="install" style="margin-top:22px">
         <article class="card">
           <h3>Microsoft Edge</h3>
           <ol>
-            <li>Open <code>edge://extensions</code></li>
-            <li>Turn on <strong>Developer mode</strong></li>
-            <li>Choose <strong>Load unpacked</strong> and pick the <code>dist</code> folder</li>
+            <li>Download the <code>histo-tree-chromium</code> zip and unzip it</li>
+            <li>Open <code>edge://extensions</code> and turn on <strong>Developer mode</strong></li>
+            <li>Choose <strong>Load unpacked</strong> and pick the unzipped folder</li>
           </ol>
         </article>
         <article class="card">
           <h3>Google Chrome</h3>
           <ol>
-            <li>Open <code>chrome://extensions</code></li>
-            <li>Turn on <strong>Developer mode</strong></li>
-            <li>Choose <strong>Load unpacked</strong> and pick the <code>dist</code> folder</li>
+            <li>Download the <code>histo-tree-chromium</code> zip and unzip it</li>
+            <li>Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong></li>
+            <li>Choose <strong>Load unpacked</strong> and pick the unzipped folder</li>
           </ol>
         </article>
         <article class="card">
           <h3>Firefox 140+ (experimental)</h3>
           <ol>
+            <li>Download the <code>histo-tree-firefox</code> zip (no need to unzip it)</li>
             <li>Open <code>about:debugging#/runtime/this-firefox</code></li>
-            <li>Choose <strong>Load Temporary Add-on…</strong></li>
-            <li>Pick <code>dist-firefox/manifest.json</code></li>
+            <li>Choose <strong>Load Temporary Add-on…</strong> and pick the zip</li>
           </ol>
         </article>
       </div>
-      <p class="note">Edge and Chrome are tested in the real browsers. The Firefox build passes Mozilla's add-on checker but has not yet been run in a real Firefox, so treat it as experimental. A temporary Firefox add-on is removed when Firefox closes.</p>
+      <p class="note">Do not delete the unzipped folder: Edge and Chrome load the extension from it. Edge and Chrome are tested in the real browsers. The Firefox build passes Mozilla's add-on checker but has not yet been run in a real Firefox, so treat it as experimental, and note that a temporary Firefox add-on is removed when Firefox closes.</p>
     </div>
   </section>
 </main>
@@ -218,7 +215,7 @@ npm run build</code></pre>
 <div class="wrap">
   <footer>
     <span>Histo-tree: see your tabs as a tree.</span>
-    <span><a href="https://github.com/JS425829/Dashtree">Source on GitHub</a> · <a href="https://github.com/JS425829/Dashtree/issues">Report an issue</a></span>
+    <span><a href="https://github.com/JS425829/Dashtree">Source on GitHub</a> · <a href="https://github.com/JS425829/Dashtree/releases">Releases</a> · <a href="https://github.com/JS425829/Dashtree/issues">Report an issue</a></span>
   </footer>
 </div>
 </body>

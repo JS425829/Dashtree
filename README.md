@@ -34,6 +34,14 @@ npm run package          # packages/histo-tree-chromium-<version>.zip and packag
 npm run lint:firefox     # Mozilla's add-on linter on dist-firefox/
 ```
 
+## Publish a release (what the website's Download button points at)
+
+1. Bump `version` in `manifest.json` and run `npm run package`. It writes `packages/histo-tree-chromium-<version>.zip`
+   and `packages/histo-tree-firefox-<version>.zip`.
+2. On GitHub open *Releases → Draft a new release*, create a tag such as `v0.1.0`, and attach those two zip files.
+3. Publish it. The site's *Download the latest release* button (`…/releases/latest`) then serves them, and the install
+   steps on the page match those file names.
+
 Before publishing on addons.mozilla.org, change the placeholder add-on id in `tools/manifest.mjs`
 (`histo-tree@histo-tree.local`) to one of your own.
 
