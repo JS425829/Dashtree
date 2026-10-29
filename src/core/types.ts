@@ -52,6 +52,8 @@ export interface Settings {
   confirmBeforeDeleting: boolean;
   // appearance
   theme: Theme;
+  /** The colour of the glow around open tabs, selections and matches, as #rrggbb; empty uses the theme's own. */
+  glowColour: string;
   compactCards: boolean;
   showSiteName: boolean;
   showStatusDots: boolean;
@@ -73,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
   clearRemovesFavouriteChildren: true,
   confirmBeforeDeleting: true,
   theme: 'system',
+  glowColour: '',
   compactCards: false,
   showSiteName: true,
   showStatusDots: true,

@@ -5,12 +5,13 @@ import { attachInteractions, editNote } from './interact';
 import { appearanceClasses, layoutOptsFor } from './appearance';
 import { DEFAULT_LAYOUT, layoutForest, type LayoutOpts, type LayoutResult } from './layout';
 import { renderForest } from './render';
-import { applyCachedTheme, applyTheme } from './theme';
+import { applyCachedGlow, applyCachedTheme, applyGlow, applyTheme } from './theme';
 import { computeMatches } from './groups';
 import { renderGroupsMenu } from './groups-menu';
 import { renderTopBar } from './topbar';
 
 applyCachedTheme();
+applyCachedGlow();
 
 export interface PageContext {
   state: TreeState;
@@ -109,6 +110,7 @@ export async function refresh(): Promise<void> {
   ctx.state = reply.state;
   ctx.settings = reply.settings;
   applyTheme(ctx.settings.theme);
+  applyGlow(ctx.settings.glowColour);
   topbar.update(ctx.settings);
   if (ctx.focusGroup && !ctx.state.groups[ctx.focusGroup]) ctx.focusGroup = null; // the focused group was deleted
   groupsMenu.update(ctx.state, ctx.focusGroup);

@@ -202,8 +202,8 @@ export function createGroup(
 
 const GROUP_COLOUR = /^#[0-9a-f]{6}$/i;
 
-/** Only plain #rrggbb values are accepted as group colours; they end up in inline styles. */
-export const isGroupColour = (c: string): boolean => GROUP_COLOUR.test(c);
+/** Only plain #rrggbb values are accepted as colours (group colours, the glow colour); they end up in inline styles. */
+export const isHexColour = (c: string): boolean => GROUP_COLOUR.test(c);
 
 /** Removes the group itself; the nodes it covered are untouched. */
 export function deleteGroup(s: TreeState, groupId: string): TreeState {
@@ -221,7 +221,7 @@ export function renameGroup(s: TreeState, groupId: string, name: string): TreeSt
 
 export function setGroupColour(s: TreeState, groupId: string, colour: string): TreeState {
   const g = s.groups[groupId];
-  if (!g || !isGroupColour(colour)) return s;
+  if (!g || !isHexColour(colour)) return s;
   return { ...s, groups: { ...s.groups, [groupId]: { ...g, colour } } };
 }
 

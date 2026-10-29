@@ -1,3 +1,4 @@
+import { isHexColour } from '../core/tree';
 import type { Theme } from '../core/types';
 
 // Pre-rename storage key, kept so existing users' remembered theme still applies.
@@ -27,5 +28,30 @@ export function applyCachedTheme(): void {
   try {
     const cached = localStorage.getItem(KEY);
     if (cached === 'light' || cached === 'dark') setAttribute(cached);
+  } catch { /* nothing cached */ }
+}
+
+const GLOW_KEY = 'histo-tree-glow';
+
+/** What the colour picker shows while no glow colour has been chosen (the light theme's own glow). */
+export const DEFAULT_GLOW = '#1f9d84';
+
+function setGlowProperty(colour: string): void {
+  const root = document.documentElement;
+  if (isHexColour(colour)) root.style.setProperty('--glow', colour);
+  else root.style.removeProperty('--glow'); // empty or not a plain #rrggbb colour: use the theme's own glow
+}
+
+/** Applies the glow colour and remembers it. Only plain #rrggbb colours get through, as it ends up in a style. */
+export function applyGlow(colour: string): void {
+  setGlowProperty(colour);
+  try { localStorage.setItem(GLOW_KEY, isHexColour(colour) ? colour : ''); } catch { /* storage unavailable */ }
+}
+
+/** Called first thing on load, before the background has answered. */
+export function applyCachedGlow(): void {
+  try {
+    const cached = localStorage.getItem(GLOW_KEY);
+    if (cached) setGlowProperty(cached);
   } catch { /* nothing cached */ }
 }

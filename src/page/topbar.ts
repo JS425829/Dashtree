@@ -2,7 +2,7 @@ import { normalizeSite } from '../core/rules';
 import { searchNodes } from '../core/tree';
 import type { NodeId, Settings, Theme, TreeState } from '../core/types';
 import type { Command } from '../shared/messages';
-import { effectiveTheme, systemPrefersDark } from './theme';
+import { DEFAULT_GLOW, effectiveTheme, systemPrefersDark } from './theme';
 
 export function matchIds(s: TreeState, query: string): Set<NodeId> {
   return new Set(searchNodes(s, query).map((n) => n.id));
@@ -174,6 +174,21 @@ export function renderTopBar(
   themeSelect.addEventListener('change', () => void send({ type: 'setSettings', settings: { theme: themeSelect.value as Theme } }));
   themeRow.append('Theme ', themeSelect);
 
+  const glowRow = document.createElement('div');
+  glowRow.className = 'field';
+  const glowLabel = document.createElement('label');
+  glowLabel.textContent = 'Glow colour ';
+  const glowPicker = document.createElement('input');
+  glowPicker.type = 'color';
+  glowPicker.setAttribute('aria-label', 'Glow colour');
+  glowPicker.addEventListener('change', () => void send({ type: 'setSettings', settings: { glowColour: glowPicker.value } }));
+  glowLabel.append(glowPicker);
+  const glowReset = document.createElement('button');
+  glowReset.type = 'button';
+  glowReset.textContent = 'Reset glow';
+  glowReset.addEventListener('click', () => void send({ type: 'setSettings', settings: { glowColour: '' } }));
+  glowRow.append(glowLabel, glowReset);
+
   const sitesRow = document.createElement('label');
   sitesRow.className = 'field stacked';
   const sites = document.createElement('textarea');
@@ -187,7 +202,7 @@ export function renderTopBar(
   popover.append(
     heading(RECORDING.title), ...checkboxes(RECORDING),
     heading(CLEANUP.title), ...checkboxes(CLEANUP),
-    heading(APPEARANCE.title), themeRow, ...checkboxes(APPEARANCE),
+    heading(APPEARANCE.title), themeRow, glowRow, ...checkboxes(APPEARANCE),
     heading('Ignored sites'), sitesRow,
   );
   el.append(search, spacer, toggle, clear, gear);
@@ -199,6 +214,8 @@ export function renderTopBar(
       toggle.setAttribute('aria-checked', String(shown() === 'dark'));
       for (const [key, box] of boxes) box.checked = s[key];
       themeSelect.value = s.theme;
+      glowPicker.value = s.glowColour || DEFAULT_GLOW;
+      glowReset.disabled = !s.glowColour;
       // never overwrite what the user is in the middle of typing
       if (document.activeElement !== sites) sites.value = s.ignoredSites.join('\n');
     },

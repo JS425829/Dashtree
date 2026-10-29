@@ -1,4 +1,4 @@
-import { isGroupColour } from '../core/tree';
+import { isHexColour } from '../core/tree';
 import type { NodeId, TreeNode, TreeState } from '../core/types';
 import { displayName } from './display';
 import { DEFAULT_LAYOUT, NOTE_BOX, type LayoutOpts, type LayoutResult } from './layout';
@@ -164,7 +164,7 @@ function makeGroupBoxes(s: TreeState, layout: LayoutResult, opts: LayoutOpts): H
       const layer = layers.get(id) ?? 0;
       layers.set(id, layer + 1);
       const pad = GROUP_PAD + layer * 4;
-      const colour = isGroupColour(g.colour) ? g.colour : FALLBACK_COLOUR; // it goes into an inline style
+      const colour = isHexColour(g.colour) ? g.colour : FALLBACK_COLOUR; // it goes into an inline style
       const box = document.createElement('div');
       box.className = 'group-box';
       box.style.cssText = `left:${p.x - pad}px;top:${p.y - pad}px;width:${nodeW + 2 * pad}px;height:${nodeH + 2 * pad}px;border-color:${colour}`;
