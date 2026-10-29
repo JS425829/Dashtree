@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Histo-tree: see your tabs as a tree</title>
+<meta name="description" content="Histo-tree turns the trail of pages you open into a tree you can read at a glance, so you never lose how you got somewhere. A browser extension for Edge, Chrome and Firefox.">
+<link rel="icon" href="img/tree-light.png">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#dff0ec; --bg-glow:#f0faf7; --card:#ffffff; --text:#121a1f; --muted:#51616a; --line:#9db8b0;
+    --accent:#1f7f6c; --accent-soft:#1f9d84; --on-accent:#ffffff; --shadow:0 10px 28px rgba(31,80,70,.12); --shadow-lg:0 18px 48px rgba(31,80,70,.2);
+    --code:#eef6f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1816; --bg-glow:#16302a; --card:#17231f; --text:#e8f1ee; --muted:#9db3ac; --line:#35504a;
+      --accent:#3ccfae; --accent-soft:#3ccfae; --on-accent:#08201a; --shadow:0 10px 28px rgba(0,0,0,.4); --shadow-lg:0 18px 48px rgba(0,0,0,.55);
+      --code:#101c19;
+    }
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+  body { margin:0; font:17px/1.6 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif; color:var(--text);
+         background:radial-gradient(1200px 560px at 15% -8%, var(--bg-glow), transparent 70%), var(--bg); }
+  a { color:var(--accent); text-underline-offset:3px; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:3px; border-radius:6px; }
+  .skip { position:absolute; left:-999px; top:8px; background:var(--card); padding:8px 14px; border-radius:10px; z-index:10; }
+  .skip:focus { left:12px; }
+  .wrap { width:min(1120px, calc(100% - 40px)); margin:0 auto; }
+
+  header.top { display:flex; flex-wrap:wrap; align-items:center; gap:12px 28px; padding:22px 0; }
+  .brand { display:flex; align-items:center; gap:12px; font-weight:700; font-size:22px; letter-spacing:-.01em; color:var(--text); text-decoration:none; }
+  .brand svg { filter:drop-shadow(0 4px 12px color-mix(in srgb, var(--accent-soft) 45%, transparent)); }
+  nav { display:flex; flex-wrap:wrap; gap:6px 22px; margin-left:auto; }
+  nav a { color:var(--text); text-decoration:none; font-weight:600; padding:6px 2px; }
+  nav a:hover { color:var(--accent); }
+
+  .hero { display:grid; grid-template-columns:minmax(0,1fr); gap:34px; padding:34px 0 20px; text-align:center; }
+  h1 { font-size:clamp(36px, 6vw, 66px); line-height:1.05; letter-spacing:-.025em; margin:0 auto; max-width:16ch; }
+  .lede { font-size:clamp(18px, 2.2vw, 22px); color:var(--muted); max-width:46ch; margin:18px auto 0; }
+  .actions { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:26px; }
+  .btn { display:inline-block; padding:13px 26px; border-radius:999px; font-weight:700; text-decoration:none; background:var(--card); color:var(--text); box-shadow:var(--shadow); }
+  .btn.primary { background:var(--accent); color:var(--on-accent); }
+  .btn:hover { box-shadow:var(--shadow-lg); }
+  .shot { margin:6px auto 0; width:100%; border-radius:26px; box-shadow:var(--shadow-lg); overflow:hidden; }
+  .shot img { display:block; width:100%; height:auto; aspect-ratio:1500 / 640; object-fit:cover; object-position:top left; }
+  .works { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:22px 0 0; padding:0; list-style:none; }
+  .works li { background:var(--card); border-radius:999px; padding:6px 16px; font-weight:600; font-size:15px; box-shadow:var(--shadow); }
+
+  section { padding:56px 0 8px; }
+  h2 { font-size:clamp(28px, 4vw, 40px); line-height:1.15; letter-spacing:-.02em; margin:0 0 10px; }
+  .sub { color:var(--muted); max-width:58ch; margin:0 0 28px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
+  .card { background:var(--card); border-radius:22px; padding:22px 24px; box-shadow:var(--shadow); }
+  .card h3 { margin:0 0 6px; font-size:19px; letter-spacing:-.01em; }
+  .card p { margin:0; color:var(--muted); font-size:16px; }
+  .icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:14px; font-size:20px; font-weight:700; background:color-mix(in srgb, var(--accent-soft) 22%, var(--card)); color:var(--accent); }
+
+  ol.steps { counter-reset:step; list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:18px; }
+  ol.steps li { counter-increment:step; background:var(--card); border-radius:22px; padding:22px 24px; box-shadow:var(--shadow); }
+  ol.steps li::before { content:counter(step); display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--accent); color:var(--on-accent); font-weight:700; margin-bottom:12px; }
+  ol.steps strong { display:block; font-size:19px; margin-bottom:4px; }
+  ol.steps span { color:var(--muted); font-size:16px; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:10px 26px; margin:0 0 20px; padding:0; list-style:none; color:var(--muted); font-size:15px; }
+  .legend b { color:var(--text); }
+  .demo { background:var(--card); border-radius:26px; box-shadow:var(--shadow-lg); overflow:hidden; }
+  .demo iframe { display:block; width:100%; height:660px; border:0; background:var(--bg); }
+  .demo-note { margin:14px 4px 0; color:var(--muted); font-size:15px; }
+
+  .install { display:grid; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr)); gap:18px; }
+  .install h3 { margin:0 0 10px; font-size:19px; }
+  .install ol { margin:0; padding-left:20px; color:var(--muted); font-size:16px; }
+  .install li { margin:6px 0; }
+  code { background:var(--code); border-radius:8px; padding:2px 7px; font:0.9em ui-monospace,"Cascadia Code",Consolas,monospace; color:var(--text); overflow-wrap:anywhere; }
+  pre { background:var(--code); border-radius:16px; padding:16px 20px; overflow-x:auto; margin:14px 0 0; }
+  pre code { background:none; padding:0; }
+  .note { margin-top:18px; color:var(--muted); font-size:15px; }
+
+  footer { margin-top:64px; padding:30px 0 48px; color:var(--muted); font-size:15px; border-top:1px solid var(--line); display:flex; flex-wrap:wrap; gap:8px 24px; justify-content:space-between; }
+  @media (max-width:640px) { .demo iframe { height:560px; } nav { margin-left:0; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top" id="top">
+      <svg viewBox="0 0 128 128" width="36" height="36" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34c3a1"/><stop offset="1" stop-color="#168a74"/></linearGradient></defs><rect width="128" height="128" rx="30" fill="url(#lg)"/><g fill="#fff"><circle cx="64" cy="32" r="13"/><rect x="60.5" y="32" width="7" height="35.5"/><rect x="24.5" y="60.5" width="79" height="7"/><rect x="24.5" y="64" width="7" height="30"/><circle cx="28" cy="94" r="11"/><rect x="60.5" y="64" width="7" height="20"/><rect x="96.5" y="64" width="7" height="20"/></g><g fill="none" stroke="#fff" stroke-width="5.25"><circle cx="64" cy="94" r="8.4"/><circle cx="100" cy="94" r="8.4"/></g></svg>
+      Histo-tree
+    </a>
+    <nav aria-label="Page sections">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#demo">Live demo</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/JS425829/Dashtree">GitHub</a>
+    </nav>
+  </header>
+</div>
+
+<main id="main">
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>See your tabs as a tree.</h1>
+        <p class="lede">Histo-tree turns the trail of pages you open into a tree you can read at a glance, so you never lose how you got somewhere.</p>
+        <div class="actions">
+          <a class="btn primary" href="#demo">Try the live demo</a>
+          <a class="btn" href="https://github.com/JS425829/Dashtree">View on GitHub</a>
+        </div>
+        <ul class="works" aria-label="Where it works and how it treats your data">
+          <li>Edge</li><li>Chrome</li><li>Firefox (experimental)</li><li>Private: nothing leaves your browser</li>
+        </ul>
+      </div>
+      <div class="shot">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="img/tree-dark.png">
+          <img src="img/tree-light.png" width="1500" height="820" alt="The Histo-tree page: Microsoft Azure at the top with its pages branching below it as cards. Open tabs glow and are joined by teal lines, closed ones are dashed, and yellow sticky notes sit beside two of the cards.">
+        </picture>
+      </div>
+    </div>
+  </div>
+
+  <section id="features" aria-labelledby="features-h">
+    <div class="wrap">
+      <h2 id="features-h">Built for people with too many tabs</h2>
+      <p class="sub">Every tab you open from scratch becomes a root. Every link you follow becomes a branch. The rest is making that tree useful.</p>
+      <div class="grid">
+        <article class="card"><div class="icon" aria-hidden="true">⑂</div><h3>A tree, not a list</h3><p>See where each page came from: the portal, the blade you opened from it, the resource behind that. One look and the whole trail is there.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">◐</div><h3>Open or hollow at a glance</h3><p>Open tabs are solid cards with a glowing dot. Closed ones turn hollow with a dashed outline. Click either to jump to the tab or reopen the page.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">★</div><h3>Favourites that stay</h3><p>Star any page and it survives restarts and clean-ups, along with the path that leads to it.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">✎</div><h3>Notes and names</h3><p>Pin a sticky note beside any card, or rename a card to what it actually is. Notes and names are searchable.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">▣</div><h3>Groups with focus mode</h3><p>Colour-code pages across different trees, then focus a group to dim everything else. Select, rename, recolour and jump to groups from one menu.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">↔</div><h3>Drag to reorder</h3><p>Drag a card sideways to reorder it among its siblings, with a marker showing where it will land. Prefer the keyboard? Use Move left and Move right.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">⌕</div><h3>Search everything</h3><p>Find a page by its title, address, name or note. Matches light up and the rest of the tree fades back.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">⊘</div><h3>Ignore sites in one click</h3><p>Right-click a card and ignore its site. Banking, webmail, anything you do not want in the tree is never recorded.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">✦</div><h3>Light, dark and your own glow</h3><p>Follow your system theme or pick one, choose the colour of the glow, switch to compact cards, and turn parts of the interface off.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">☁</div><h3>Understands web apps</h3><p>Apps like the Azure Portal change the page without reloading it. Histo-tree follows those route changes, so each blade gets its own card.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">⌨</div><h3>Keyboard friendly</h3><p>Every card is a real button, menus open from the keyboard, and screen readers hear each card's name, state, notes and groups.</p></article>
+        <article class="card"><div class="icon" aria-hidden="true">🔒</div><h3>Private by design</h3><p>Everything is stored locally in your browser. There is no account, no server and no tracking, and private windows are never recorded.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-h">
+    <div class="wrap">
+      <h2 id="how-h">How it works</h2>
+      <p class="sub">There is nothing to set up. Browse the way you always do.</p>
+      <ol class="steps">
+        <li><strong>Browse as normal</strong><span>Open pages, follow links, open links in new tabs. Histo-tree quietly notes which page led to which.</span></li>
+        <li><strong>Open the tree</strong><span>Click the toolbar button or press <code>Alt+Shift+T</code>. Your whole trail appears as one tree.</span></li>
+        <li><strong>Jump back in</strong><span>Click any card to switch to its tab, or to reopen a page you closed. Favourites are still there after a restart.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="demo" aria-labelledby="demo-h">
+    <div class="wrap">
+      <h2 id="demo-h">Try it right here</h2>
+      <p class="sub">This is the real interface running on sample data. Nothing you do here is saved.</p>
+      <ul class="legend" aria-label="Things to try">
+        <li><b>Click</b> the star on a card</li>
+        <li><b>Right-click</b> a card for its menu</li>
+        <li><b>Drag</b> a card sideways to reorder</li>
+        <li><b>Click</b> a yellow note to edit it</li>
+        <li>Open <b>Settings</b> and change the glow colour</li>
+      </ul>
+      <div class="demo">
+        <iframe src="demo.html" title="Histo-tree live demo on sample data" loading="lazy"></iframe>
+      </div>
+      <p class="demo-note"><a class="btn" href="demo.html">Open the demo full screen</a></p>
+    </div>
+  </section>
+
+  <section id="install" aria-labelledby="install-h">
+    <div class="wrap">
+      <h2 id="install-h">Get it</h2>
+      <p class="sub">Store listings are not available yet, so for now you build it once and load it into your browser.</p>
+      <pre><code>npm install
+npm run build</code></pre>
+      <p class="note">That creates <code>dist</code> for Edge and Chrome, and <code>dist-firefox</code> for Firefox.</p>
+      <div class="install" style="margin-top:22px">
+        <article class="card">
+          <h3>Microsoft Edge</h3>
+          <ol>
+            <li>Open <code>edge://extensions</code></li>
+            <li>Turn on <strong>Developer mode</strong></li>
+            <li>Choose <strong>Load unpacked</strong> and pick the <code>dist</code> folder</li>
+          </ol>
+        </article>
+        <article class="card">
+          <h3>Google Chrome</h3>
+          <ol>
+            <li>Open <code>chrome://extensions</code></li>
+            <li>Turn on <strong>Developer mode</strong></li>
+            <li>Choose <strong>Load unpacked</strong> and pick the <code>dist</code> folder</li>
+          </ol>
+        </article>
+        <article class="card">
+          <h3>Firefox 140+ (experimental)</h3>
+          <ol>
+            <li>Open <code>about:debugging#/runtime/this-firefox</code></li>
+            <li>Choose <strong>Load Temporary Add-on…</strong></li>
+            <li>Pick <code>dist-firefox/manifest.json</code></li>
+          </ol>
+        </article>
+      </div>
+      <p class="note">Edge and Chrome are tested in the real browsers. The Firefox build passes Mozilla's add-on checker but has not yet been run in a real Firefox, so treat it as experimental. A temporary Firefox add-on is removed when Firefox closes.</p>
+    </div>
+  </section>
+</main>
+
+<div class="wrap">
+  <footer>
+    <span>Histo-tree: see your tabs as a tree.</span>
+    <span><a href="https://github.com/JS425829/Dashtree">Source on GitHub</a> · <a href="https://github.com/JS425829/Dashtree/issues">Report an issue</a></span>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Histo-tree</title>
+<link rel="icon" href="icons/icon-32.png">
+<style>
+  /* soft mint by default; deep teal-grey when the system prefers dark */
+  :root {
+    color-scheme: light;
+    --bg:#dff0ec; --bg-glow:#f0faf7; --card:#ffffff; --card-hollow:rgba(255,255,255,.5); --surface-2:#ffffff;
+    --text:#121a1f; --muted:#5a6a72; --line:#8fa8a0; --border-strong:#5f7d75;
+    --accent:#1f9d84; --focus:#0f7f6a; --star:#e0a100; --note-bg:#fff3c4; --note-ink:#4a3b00; --glow:var(--accent);
+    --tile-s:80%; --tile-l:88%; --tile-ink-l:28%;
+    --select-fill:rgba(31,157,132,.14);
+    --shadow:0 10px 28px rgba(31,80,70,.12); --shadow-lg:0 14px 40px rgba(31,80,70,.2);
+  }
+  /* dark: when the system prefers it (unless light is forced), or when dark is chosen explicitly */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg:#0e1816; --bg-glow:#16302a; --card:#17231f; --card-hollow:rgba(23,35,31,.5); --surface-2:#1c2a26;
+      --text:#e8f1ee; --muted:#9db3ac; --line:#4f6e66; --border-strong:#7fa398;
+      --accent:#3ccfae; --focus:#7fe6cd; --star:#f5c542; --note-bg:#3b3418; --note-ink:#f6e7a6;
+      --tile-s:35%; --tile-l:26%; --tile-ink-l:82%;
+      --select-fill:rgba(60,207,174,.16);
+      --shadow:0 10px 28px rgba(0,0,0,.4); --shadow-lg:0 14px 40px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:#0e1816; --bg-glow:#16302a; --card:#17231f; --card-hollow:rgba(23,35,31,.5); --surface-2:#1c2a26;
+    --text:#e8f1ee; --muted:#9db3ac; --line:#4f6e66; --border-strong:#7fa398;
+    --accent:#3ccfae; --focus:#7fe6cd; --star:#f5c542; --note-bg:#3b3418; --note-ink:#f6e7a6;
+    --tile-s:35%; --tile-l:26%; --tile-ink-l:82%;
+    --select-fill:rgba(60,207,174,.16);
+    --shadow:0 10px 28px rgba(0,0,0,.4); --shadow-lg:0 14px 40px rgba(0,0,0,.55);
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body { display:flex; flex-direction:column; font:14px/1.45 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif; color:var(--text); overflow:hidden;
+         background:radial-gradient(1100px 520px at 18% -8%, var(--bg-glow), transparent 70%), var(--bg); }
+  button { font:inherit; color:inherit; }
+  :focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
+
+  #topbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px; padding:22px 36px 6px; flex:none; }
+  #topbar h1 { display:flex; align-items:center; gap:10px; font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0 10px 0 0; }
+  #topbar .logo { flex:none; filter:drop-shadow(0 4px 12px color-mix(in srgb, var(--glow) 45%, transparent)); }
+  #topbar .spacer { flex:1; }
+  #topbar input[type=search] { width:min(300px,100%); min-height:40px; background:var(--card); color:var(--text); border:0; border-radius:999px; padding:8px 18px; font-size:14px; box-shadow:var(--shadow); }
+  #topbar input[type=search]::placeholder { color:var(--muted); }
+  #topbar button { min-height:40px; background:var(--card); border:0; border-radius:999px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer; box-shadow:var(--shadow); }
+  #topbar button:hover { color:var(--accent); }
+  #topbar .theme-toggle { width:40px; padding:0; display:flex; align-items:center; justify-content:center; }
+  .theme-toggle svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .theme-toggle[aria-checked="true"] .moon, .theme-toggle:not([aria-checked="true"]) .sun { display:none; }
+
+  #viewport { flex:1; overflow:auto; padding:48px 56px 90px; position:relative; cursor:grab; user-select:none; }
+  #viewport.panning { cursor:grabbing; }
+  #canvas { position:relative; min-width:100%; }
+  #empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); text-align:center; padding:0 20px; pointer-events:none; }
+  #empty strong { color:var(--text); font-size:18px; }
+  #empty[hidden] { display:none; }
+
+  .connectors { position:absolute; left:0; top:0; pointer-events:none; overflow:visible; }
+  .connectors .link { fill:none; stroke:var(--line); stroke-width:1.75; stroke-dasharray:5 5; }
+  .connectors .link.open { stroke:var(--glow); }
+  .connectors .dot.open { fill:var(--glow); stroke:var(--glow); stroke-width:2; }
+  .connectors .dot.hollow { fill:var(--bg); stroke:var(--border-strong); stroke-width:2; }
+
+  .node { position:absolute; display:flex; align-items:stretch; border-radius:20px; background:var(--card); box-shadow:var(--shadow); overflow:hidden; white-space:nowrap; }
+  .node.hollow { background:var(--card-hollow); box-shadow:none; outline:1.5px dashed var(--border-strong); outline-offset:-1.5px; }
+  .node:hover { box-shadow:var(--shadow-lg); }
+  /* the glow: a soft halo in the glow colour around every card whose tab is open */
+  .node.open { box-shadow:var(--shadow), 0 0 0 1px color-mix(in srgb, var(--glow) 40%, transparent), 0 0 24px color-mix(in srgb, var(--glow) 30%, transparent); }
+  .node.open:hover { box-shadow:var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--glow) 55%, transparent), 0 0 30px color-mix(in srgb, var(--glow) 45%, transparent); }
+  .node.selected { outline:3px solid var(--glow); outline-offset:2px; }
+  .node.match { outline:2px solid var(--glow); outline-offset:1px; }
+  .node.dim { opacity:.35; }
+  .node-main { flex:1; min-width:0; display:flex; align-items:center; gap:12px; padding:0 4px 0 12px; background:none; border:0; text-align:left; cursor:pointer; }
+  .node-main:focus-visible, .star:focus-visible { outline-offset:-4px; border-radius:16px; }
+  .tile { flex:none; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:hsl(var(--h) var(--tile-s) var(--tile-l)); }
+  .node.hollow .tile { opacity:.8; }
+  .tile .ico { width:22px; height:22px; }
+  .tile .ico-fallback { font-weight:700; font-size:16px; color:hsl(var(--h) 45% var(--tile-ink-l)); }
+  .words { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .label { font-weight:650; overflow:hidden; text-overflow:ellipsis; }
+  .sub { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
+  .node.hollow .label { color:var(--muted); }
+  /* the pencil mark is only needed when notes are not shown in boxes */
+  .note-mark { display:none; color:var(--muted); }
+  .hide-notes .note-mark { display:flex; }
+
+  .note-box { position:absolute; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:5; overflow:hidden; padding:9px 13px; border:0; border-radius:16px 16px 16px 4px; background:var(--note-bg); color:var(--note-ink); font:inherit; font-size:12.5px; line-height:1.4; text-align:left; white-space:pre-wrap; word-break:break-word; cursor:pointer; box-shadow:var(--shadow); }
+  .note-box:hover { box-shadow:var(--shadow-lg); }
+  .note-box.dim { opacity:.35; }
+  .node.dragging { z-index:6; opacity:.85; cursor:grabbing; box-shadow:var(--shadow-lg); }
+  .node.dragging .node-main { cursor:grabbing; }
+  .drop-indicator { position:absolute; width:4px; border-radius:2px; background:var(--accent); pointer-events:none; z-index:5; }
+  .star { flex:none; width:42px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--muted); cursor:pointer; }
+  .star:hover { color:var(--star); }
+  .star svg, .note-mark svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; stroke-linecap:round; }
+  .node.favourite .star { color:var(--star); }
+  .node.favourite .star svg { fill:currentColor; }
+
+  /* appearance settings: classes set on the canvas */
+  .solid-lines .connectors .link { stroke-dasharray:none; }
+  .hide-dots .connectors .dot { display:none; }
+  .hide-site .sub { display:none; }
+  .compact .node { border-radius:14px; }
+  .compact .node-main { gap:9px; padding-left:9px; }
+  .compact .tile { width:28px; height:28px; border-radius:9px; }
+  .compact .tile .ico { width:16px; height:16px; }
+  .compact .tile .ico-fallback { font-size:13px; }
+  .compact .label { font-size:13px; }
+  .compact .star { width:34px; }
+  .compact .group-box { border-radius:20px; }
+
+  .group-box { position:absolute; border:2px solid; border-radius:28px; pointer-events:none; opacity:.9; }
+  .group-label { position:absolute; top:-10px; left:16px; max-width:calc(100% - 32px); overflow:hidden; text-overflow:ellipsis; padding:0 9px; border-radius:8px; font-size:11px; line-height:17px; color:#10211d; font-weight:700; white-space:nowrap; }
+  .selection-box { position:absolute; border:1.5px solid var(--accent); border-radius:6px; background:var(--select-fill); pointer-events:none; }
+
+  .menu { position:fixed; z-index:10; min-width:210px; background:var(--card); border-radius:16px; padding:6px; box-shadow:var(--shadow-lg); }
+  .menu button { display:block; width:100%; min-height:36px; text-align:left; background:none; border:0; padding:8px 12px; border-radius:10px; font-size:14px; cursor:pointer; }
+  .menu button:hover, .menu button:focus-visible { background:var(--bg); }
+  .menu hr { border:0; border-top:1px solid var(--line); opacity:.5; margin:6px 4px; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:20; max-width:min(560px,calc(100vw - 40px)); background:var(--text); color:var(--bg); padding:12px 20px; border-radius:16px; font-weight:600; box-shadow:var(--shadow-lg); }
+  .popover { position:absolute; right:36px; top:76px; z-index:10; max-width:min(440px,calc(100vw - 40px)); background:var(--card); border-radius:18px; padding:16px 18px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow-lg); }
+  .popover label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .popover { max-height:calc(100vh - 100px); overflow-y:auto; width:min(440px,calc(100vw - 40px)); }
+  .popover h2 { margin:6px 0 0; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .popover h2:first-child { margin-top:0; }
+  .popover input { accent-color:var(--accent); margin-top:3px; }
+  .popover .field { align-items:center; justify-content:space-between; }
+  .popover .field.stacked { flex-direction:column; align-items:stretch; gap:6px; }
+  .popover select, .popover textarea { font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .popover textarea { width:100%; resize:vertical; min-height:84px; }
+  .popover[hidden] { display:none; }
+
+  .groups-popover { right:36px; width:min(560px,calc(100vw - 40px)); gap:10px; }
+  .groups-popover .new-group { align-self:flex-start; min-height:36px; background:var(--bg); border:0; border-radius:999px; padding:6px 16px; font-weight:600; cursor:pointer; }
+  .groups-popover .new-group:disabled { opacity:.5; cursor:not-allowed; }
+  .group-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .group-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:8px 10px; border-radius:14px; background:var(--bg); }
+  .group-row input[type=color] { width:28px; height:28px; padding:0; border:0; border-radius:8px; background:none; cursor:pointer; }
+  .group-name { font-weight:650; flex:1; min-width:120px; overflow:hidden; text-overflow:ellipsis; }
+  .group-count { color:var(--muted); font-size:12px; }
+  .group-actions { display:flex; flex-wrap:wrap; gap:4px; }
+  .group-actions button { min-height:30px; padding:2px 10px; border:0; border-radius:999px; background:var(--card); font-size:12.5px; font-weight:600; cursor:pointer; }
+  .group-actions button:hover { color:var(--accent); }
+  .group-actions button[aria-pressed="true"] { background:var(--accent); color:var(--card); }
+  .group-empty { margin:0; color:var(--muted); }
+  .group-empty[hidden], .group-list[hidden] { display:none; }
+  .hide-groups .group-box { display:none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .node { transition:box-shadow .15s ease, opacity .15s ease; }
+    .star, #topbar button { transition:color .15s ease; }
+  }
+</style>
+</head>
+<body>
+<header id="topbar"><h1><svg class="logo" viewBox="0 0 128 128" width="32" height="32" aria-hidden="true"><defs><linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34c3a1"/><stop offset="1" stop-color="#168a74"/></linearGradient></defs><rect width="128" height="128" rx="30" fill="url(#logo-bg)"/><g fill="#fff"><circle cx="64" cy="32" r="13"/><rect x="60.5" y="32" width="7" height="35.5"/><rect x="24.5" y="60.5" width="79" height="7"/><rect x="24.5" y="64" width="7" height="30"/><circle cx="28" cy="94" r="11"/><rect x="60.5" y="64" width="7" height="20"/><rect x="96.5" y="64" width="7" height="20"/></g><g fill="none" stroke="#fff" stroke-width="5.25"><circle cx="64" cy="94" r="8.4"/><circle cx="100" cy="94" r="8.4"/></g></svg>Histo-tree</h1></header>
+<main id="viewport" aria-label="Tab tree">
+  <div id="empty" hidden><strong>Nothing recorded yet</strong><span>Browse a few pages and they will appear here as a tree.</span></div>
+  <div id="canvas"></div>
+</main>
+<script>(() => {
+  // src/core/rules.ts
+  function isTrackableUrl(url) {
+    return /^(https?|file):/i.test(url);
+  }
+  function normalizeSite(entry) {
+    return entry.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, "").replace(/^\*\./, "").split(/[/?#]/)[0].replace(/:\d+$/, "").replace(/^\.+|\.+$/g, "");
+  }
+  function isIgnoredUrl(url, sites) {
+    let host;
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      return !1;
+    }
+    return sites.some((site) => {
+      let s = normalizeSite(site);
+      return s !== "" && (host === s || host.endsWith(`.${s}`));
+    });
+  }
+
+  // src/core/tree.ts
+  function childrenOf(s, id) {
+    return Object.values(s.nodes).filter((n) => n.parentId === id);
+  }
+  function descendantIds(s, id) {
+    let out = [], stack = childrenOf(s, id);
+    for (; stack.length; ) {
+      let n = stack.pop();
+      out.push(n.id), stack.push(...childrenOf(s, n.id));
+    }
+    return out;
+  }
+  function ancestorIds(s, id) {
+    let out = [], p = s.nodes[id]?.parentId ?? null;
+    for (; p; )
+      out.push(p), p = s.nodes[p]?.parentId ?? null;
+    return out;
+  }
+  var patchNode = (s, id, patch) => s.nodes[id] ? { ...s, nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } } : s, byOrder = (a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || a.id.localeCompare(b.id);
+  function orderedSiblings(s, id) {
+    let parentOf = (n) => n.parentId && s.nodes[n.parentId] ? n.parentId : null, me = s.nodes[id];
+    if (!me) return [];
+    let parent = parentOf(me);
+    return Object.values(s.nodes).filter((n) => parentOf(n) === parent).sort(byOrder).map((n) => n.id);
+  }
+  function moveNode(s, id, targetId, position) {
+    if (id === targetId) return s;
+    let list = orderedSiblings(s, id);
+    if (!list.includes(targetId)) return s;
+    let rest = list.filter((x) => x !== id), at = rest.indexOf(targetId) + (position === "after" ? 1 : 0), next = [...rest.slice(0, at), id, ...rest.slice(at)];
+    if (next.every((x, i) => x === list[i])) return s;
+    let nodes = { ...s.nodes };
+    return next.forEach((nid, i) => {
+      nodes[nid] = { ...nodes[nid], order: i };
+    }), { ...s, nodes };
+  }
+  function stepTarget(s, id, dir) {
+    let list = orderedSiblings(s, id), i = list.indexOf(id);
+    return i < 0 ? null : dir < 0 ? i > 0 ? { targetId: list[i - 1], position: "before" } : null : i < list.length - 1 ? { targetId: list[i + 1], position: "after" } : null;
+  }
+  function addNode(s, p, now = Date.now()) {
+    let id = crypto.randomUUID(), node = {
+      id,
+      parentId: p.parentId,
+      url: p.url,
+      title: p.title ?? "",
+      favIconUrl: p.favIconUrl ?? "",
+      tabId: p.tabId,
+      favourite: !1,
+      note: "",
+      createdAt: now
+    };
+    return { state: { ...s, nodes: { ...s.nodes, [id]: node } }, id };
+  }
+  function updateNode(s, id, patch) {
+    return patchNode(s, id, patch);
+  }
+  function deleteNodes(s, ids, withChildren) {
+    let removed = new Set(ids.filter((id) => s.nodes[id]));
+    if (withChildren) for (let id of [...removed]) descendantIds(s, id).forEach((d) => removed.add(d));
+    let nodes = {};
+    for (let n of Object.values(s.nodes)) {
+      if (removed.has(n.id)) continue;
+      let parentId = n.parentId;
+      for (; parentId && removed.has(parentId); ) parentId = s.nodes[parentId].parentId;
+      nodes[n.id] = parentId === n.parentId ? n : { ...n, parentId };
+    }
+    let groups = {};
+    for (let g2 of Object.values(s.groups)) {
+      let nodeIds = g2.nodeIds.filter((id) => !removed.has(id));
+      nodeIds.length && (groups[g2.id] = { ...g2, nodeIds });
+    }
+    return { ...s, nodes, groups };
+  }
+  function hollowDescendants(s, id) {
+    return descendantIds(s, id).filter((d) => s.nodes[d].tabId === null);
+  }
+  function protectedIds(s, opts = {}) {
+    let keep = /* @__PURE__ */ new Set();
+    for (let n of Object.values(s.nodes))
+      n.favourite && (keep.add(n.id), ancestorIds(s, n.id).forEach((a) => keep.add(a)), opts.clearFavouriteChildren || descendantIds(s, n.id).forEach((d) => keep.add(d)));
+    return keep;
+  }
+  function clearHollow(s, opts = {}) {
+    let keep = protectedIds(s, opts), doomed = Object.values(s.nodes).filter((n) => n.tabId === null && !keep.has(n.id) && (opts.createdBefore === void 0 || n.createdAt < opts.createdBefore)).map((n) => n.id);
+    return deleteNodes(s, doomed, !1);
+  }
+  var setFavourite = (s, id, v) => patchNode(s, id, { favourite: v }), setNote = (s, id, note) => patchNode(s, id, { note });
+  function renameNode(s, id, title) {
+    let node = s.nodes[id];
+    if (!node) return s;
+    let name = title.trim();
+    if (name) return patchNode(s, id, { customTitle: name });
+    let { customTitle: _dropped, ...rest } = node;
+    return { ...s, nodes: { ...s.nodes, [id]: rest } };
+  }
+  function createGroup(s, name, colour, nodeIds) {
+    let id = crypto.randomUUID();
+    return { state: { ...s, groups: { ...s.groups, [id]: { id, name, colour, nodeIds: [...new Set(nodeIds)] } } }, id };
+  }
+  var GROUP_COLOUR = /^#[0-9a-f]{6}$/i, isHexColour = (c) => GROUP_COLOUR.test(c);
+  function deleteGroup(s, groupId) {
+    if (!s.groups[groupId]) return s;
+    let { [groupId]: _gone, ...groups } = s.groups;
+    return { ...s, groups };
+  }
+  function renameGroup(s, groupId, name) {
+    let g2 = s.groups[groupId], clean = name.trim();
+    return !g2 || !clean ? s : { ...s, groups: { ...s.groups, [groupId]: { ...g2, name: clean } } };
+  }
+  function setGroupColour(s, groupId, colour) {
+    let g2 = s.groups[groupId];
+    return !g2 || !isHexColour(colour) ? s : { ...s, groups: { ...s.groups, [groupId]: { ...g2, colour } } };
+  }
+  function removeFromGroup(s, groupId, nodeIds) {
+    let g2 = s.groups[groupId];
+    if (!g2) return s;
+    let gone = new Set(nodeIds), rest = g2.nodeIds.filter((id) => !gone.has(id));
+    return rest.length === g2.nodeIds.length ? s : rest.length ? { ...s, groups: { ...s.groups, [groupId]: { ...g2, nodeIds: rest } } } : deleteGroup(s, groupId);
+  }
+  function addToGroup(s, groupId, nodeIds) {
+    let g2 = s.groups[groupId];
+    return g2 ? { ...s, groups: { ...s.groups, [groupId]: { ...g2, nodeIds: [.../* @__PURE__ */ new Set([...g2.nodeIds, ...nodeIds])] } } } : s;
+  }
+  function searchNodes(s, query2) {
+    let q = query2.trim().toLowerCase();
+    return q ? Object.values(s.nodes).filter(
+      (n) => [n.title, n.url, n.note, n.customTitle ?? ""].some((f) => f.toLowerCase().includes(q))
+    ) : [];
+  }
+
+  // src/core/types.ts
+  var DEFAULT_SETTINGS = {
+    sameTabAddsNode: !0,
+    routeFragmentsAreSeparate: !0,
+    reuseEarlierPage: !0,
+    redirectsUpdateNode: !0,
+    wipeHollowAfterRestart: !0,
+    hollowOnTabClose: !0,
+    clearRemovesFavouriteChildren: !0,
+    confirmBeforeDeleting: !0,
+    theme: "system",
+    glowColour: "",
+    compactCards: !1,
+    showSiteName: !0,
+    showStatusDots: !0,
+    dashedConnectors: !0,
+    showGroupOutlines: !0,
+    showNoteBoxes: !0,
+    ignoredSites: []
+  }, EMPTY_STATE = { nodes: {}, groups: {} };
+
+  // src/shared/messages.ts
+  var CHANGED = "changed";
+
+  // tools/chrome-shim.ts
+  var state = EMPTY_STATE, settings = { ...DEFAULT_SETTINGS }, nextTab = 100, icon = (domain) => "", clock = 1e3;
+  function add(parentId, domain, path, title, tabId) {
+    let r = addNode(state, { parentId, url: `https://${domain}${path}`, title, favIconUrl: icon(domain), tabId }, clock++);
+    return state = r.state, r.id;
+  }
+  var azure = add(null, "portal.azure.com", "/", "Microsoft Azure", 1), rgs = add(azure, "portal.azure.com", "/#view/Browse/ResourceGroups", "Resource groups", null), prod = add(rgs, "portal.azure.com", "/#@contoso/resource/rg-prod-uk", "rg-prod-uk", 2), blobs = add(prod, "portal.azure.com", "/#@contoso/resource/rg-prod-uk/blobs", "Storage account: blobs", null);
+  add(rgs, "portal.azure.com", "/#@contoso/resource/rg-dev", "rg-dev", null);
+  var pipes = add(azure, "dev.azure.com", "/xpand/_build", "Pipelines", 3), run = add(pipes, "dev.azure.com", "/xpand/_build/results?buildId=482", "Run #482", null);
+  add(azure, "portal.azure.com", "/#view/Cost/Management", "Cost management", null);
+  var gh = add(null, "github.com", "/", "GitHub", 4), pr = add(gh, "github.com", "/xpand/app/pull/31", "PR #31: tidy deploy script", null);
+  add(pr, "github.com", "/xpand/app/pull/31/checks", "Checks", null);
+  var outlook = add(null, "outlook.office.com", "/mail", "Outlook", null);
+  state = setFavourite(state, azure, !0);
+  state = setFavourite(state, outlook, !0);
+  state = setNote(state, azure, "check costs before Friday");
+  state = setNote(state, blobs, "lifecycle rule?");
+  state = createGroup(state, "Ticket XL-1042", "#5aaeff", [prod, run, pr]).state;
+  var listeners = [], notify = () => listeners.forEach((l) => l({ type: CHANGED }));
+  async function handle(c) {
+    switch (c.type) {
+      case "getState":
+      case "getSettings":
+        return { state, settings };
+      case "activate": {
+        let n = state.nodes[c.id];
+        n && n.tabId === null && (state = updateNode(state, c.id, { tabId: nextTab++ }));
+        break;
+      }
+      case "delete":
+        state = deleteNodes(state, c.ids, c.withChildren);
+        break;
+      case "setFavourite":
+        state = setFavourite(state, c.id, c.value);
+        break;
+      case "setNote":
+        state = setNote(state, c.id, c.note);
+        break;
+      case "rename":
+        state = renameNode(state, c.id, c.title);
+        break;
+      case "move":
+        state = moveNode(state, c.id, c.targetId, c.position);
+        break;
+      case "clearHollow":
+        state = clearHollow(state);
+        break;
+      case "createGroup":
+        state = createGroup(state, c.name, c.colour, c.nodeIds).state;
+        break;
+      case "addToGroup":
+        state = addToGroup(state, c.groupId, c.nodeIds);
+        break;
+      case "removeFromGroup":
+        state = removeFromGroup(state, c.groupId, c.nodeIds);
+        break;
+      case "deleteGroup":
+        state = deleteGroup(state, c.groupId);
+        break;
+      case "renameGroup":
+        state = renameGroup(state, c.groupId, c.name);
+        break;
+      case "recolourGroup":
+        state = setGroupColour(state, c.groupId, c.colour);
+        break;
+      case "setSettings":
+        settings = { ...settings, ...c.settings };
+        break;
+    }
+    setTimeout(notify, 0);
+  }
+  globalThis.chrome = {
+    runtime: {
+      sendMessage: handle,
+      onMessage: { addListener: (fn) => listeners.push(fn) }
+    }
+  };
+
+  // src/shared/api.ts
+  var g = globalThis, ext = g.browser ?? g.chrome;
+
+  // src/page/display.ts
+  function displayName(n) {
+    let custom = n.customTitle?.trim();
+    if (custom) return custom;
+    if (n.title) return n.title;
+    if (!n.url) return "Loading\u2026";
+    try {
+      let u = new URL(n.url);
+      return u.hostname + (u.pathname === "/" ? "" : u.pathname);
+    } catch {
+      return n.url;
+    }
+  }
+
+  // src/page/groups.ts
+  var GROUP_COLOURS = ["#4da3ff", "#f5c542", "#7bd88f", "#ff7b72", "#c69cff", "#ffa657"], nextGroupColour = (s) => GROUP_COLOURS[Object.keys(s.groups).length % GROUP_COLOURS.length], groupMembers = (s, groupId) => (s.groups[groupId]?.nodeIds ?? []).filter((id) => s.nodes[id]);
+  function computeMatches(s, query2, focusGroupId) {
+    let members = focusGroupId && s.groups[focusGroupId] ? new Set(groupMembers(s, focusGroupId)) : null, hits = query2.trim() ? new Set(searchNodes(s, query2).map((n) => n.id)) : null;
+    return hits && members ? new Set([...hits].filter((id) => members.has(id))) : hits ?? members;
+  }
+
+  // src/page/layout.ts
+  var DEFAULT_LAYOUT = { nodeW: 268, nodeH: 64, gapX: 24, gapY: 64 }, ROOT_GAP = 60, NOTE_BOX = { w: 208, gap: 12 };
+  function layoutForest(s, opts = DEFAULT_LAYOUT, withNotes = !1) {
+    let { nodeW, nodeH, gapX, gapY } = opts, all = Object.values(s.nodes).sort(byOrder);
+    if (!all.length) return { pos: {}, width: 0, height: 0 };
+    let slotW = (n) => nodeW + (withNotes && n.note?.trim() ? NOTE_BOX.gap + NOTE_BOX.w : 0), kids = /* @__PURE__ */ new Map();
+    for (let n of all) {
+      let parent = n.parentId && s.nodes[n.parentId] ? n.parentId : null, list = kids.get(parent);
+      list ? list.push(n) : kids.set(parent, [n]);
+    }
+    let pos = {}, maxDepth = 0;
+    function place(node, left, depth) {
+      maxDepth = Math.max(maxDepth, depth);
+      let children = kids.get(node.id) ?? [], cx, right;
+      if (!children.length)
+        cx = left + nodeW / 2, right = left + slotW(node);
+      else {
+        let centres = [], cursor2 = left;
+        right = left;
+        for (let c of children) {
+          let r = place(c, cursor2, depth + 1);
+          centres.push(r.cx), right = r.right, cursor2 = r.right + gapX;
+        }
+        cx = (centres[0] + centres[centres.length - 1]) / 2, right = Math.max(right, cx - nodeW / 2 + slotW(node));
+      }
+      return pos[node.id] = { x: cx - nodeW / 2, y: depth * (nodeH + gapY) }, { cx, right };
+    }
+    let cursor = 0, width = 0;
+    for (let root of kids.get(null) ?? []) {
+      let r = place(root, cursor, 0);
+      width = r.right, cursor = r.right + ROOT_GAP;
+    }
+    return { pos, width, height: maxDepth * (nodeH + gapY) + nodeH };
+  }
+
+  // src/page/menu.ts
+  var open = null;
+  function closeMenu() {
+    open?.remove(), open = null;
+  }
+  function showMenu(x, y, items) {
+    closeMenu();
+    let menu = document.createElement("div");
+    menu.className = "menu";
+    for (let item of items) {
+      if (item === "separator") {
+        menu.append(document.createElement("hr"));
+        continue;
+      }
+      let b = document.createElement("button");
+      b.textContent = item.label, b.addEventListener("click", () => {
+        closeMenu(), item.action();
+      }), menu.append(b);
+    }
+    document.body.append(menu);
+    let r = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - r.width - 4))}px`, menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - r.height - 4))}px`, open = menu;
+    let dismiss = (e) => {
+      e instanceof MouseEvent && menu.contains(e.target) || (closeMenu(), window.removeEventListener("mousedown", dismiss, !0), window.removeEventListener("keydown", dismiss, !0), window.removeEventListener("blur", dismiss));
+    };
+    window.addEventListener("mousedown", dismiss, !0), window.addEventListener("keydown", (e) => e.key === "Escape" && dismiss(e), !0), window.addEventListener("blur", dismiss);
+  }
+
+  // src/page/toast.ts
+  var current = null;
+  function showToast(text, ms = 5e3) {
+    current?.remove();
+    let el = document.createElement("div");
+    el.className = "toast", el.setAttribute("role", "status"), el.textContent = text, document.body.append(el), current = el, setTimeout(() => {
+      el.remove(), current === el && (current = null);
+    }, ms);
+  }
+
+  // src/page/interact.ts
+  function editNote(id, current2, send2) {
+    let note = prompt("Note for this tab", current2);
+    note !== null && send2({ type: "setNote", id, note });
+  }
+  function reorderTarget(s, layout, nodeW, draggedId, pointerX) {
+    let others = orderedSiblings(s, draggedId).filter((id) => id !== draggedId && layout.pos[id]);
+    if (!others.length) return null;
+    let before = others.find((id) => layout.pos[id].x + nodeW / 2 > pointerX), targetId = before ?? others[others.length - 1], position = before ? "before" : "after";
+    return moveNode(s, draggedId, targetId, position) === s ? null : { targetId, position };
+  }
+  function ignoreCandidates(s, ids, ignored) {
+    let out = [];
+    for (let id of ids) {
+      let url = s.nodes[id]?.url;
+      if (!url || !isTrackableUrl(url)) continue;
+      let host;
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch {
+        continue;
+      }
+      !host || out.includes(host) || isIgnoredUrl(url, ignored) || out.push(host);
+    }
+    return out;
+  }
+  function needsConfirm(count, withChildren, enabled) {
+    return enabled && (count > 1 || withChildren);
+  }
+  var DRAG_THRESHOLD = 4;
+  function nodesInRect(layout, nodeW, nodeH, r) {
+    let left = Math.min(r.x1, r.x2), right = Math.max(r.x1, r.x2), top = Math.min(r.y1, r.y2), bottom = Math.max(r.y1, r.y2);
+    return Object.entries(layout.pos).filter(([, p]) => p.x <= right && p.x + nodeW >= left && p.y <= bottom && p.y + nodeH >= top).map(([id]) => id);
+  }
+  function buildMenu(ids, c, send2, changed) {
+    let del = (withChildren) => () => {
+      let what = `${ids.length} node${ids.length === 1 ? "" : "s"}${withChildren ? " and everything under them" : ""}`;
+      needsConfirm(ids.length, withChildren, c.confirmDelete) && !confirm(`Delete ${what}?`) || send2({ type: "delete", ids, withChildren });
+    }, items = [
+      { label: "Delete", action: del(!1) },
+      { label: "Delete with children", action: del(!0) }
+    ];
+    if (ids.length === 1) {
+      let id = ids[0];
+      items.push(
+        {
+          label: "Rename",
+          action: () => {
+            let node = c.state.nodes[id], name = prompt("Name for this node (leave empty to use the page title)", node.url || node.customTitle ? displayName(node) : "");
+            name !== null && send2({ type: "rename", id, title: name });
+          }
+        },
+        {
+          label: "Add notes",
+          action: () => editNote(id, c.state.nodes[id].note, send2)
+        },
+        {
+          label: "Select hollow children",
+          action: () => {
+            c.selected.clear(), hollowDescendants(c.state, id).forEach((d) => c.selected.add(d)), changed();
+          }
+        }
+      );
+      let left = stepTarget(c.state, id, -1), right = stepTarget(c.state, id, 1);
+      left && items.push({ label: "Move left", action: () => {
+        send2({ type: "move", id, ...left });
+      } }), right && items.push({ label: "Move right", action: () => {
+        send2({ type: "move", id, ...right });
+      } });
+    }
+    items.push("separator", {
+      label: "Create group\u2026",
+      action: () => {
+        let name = prompt("Group name")?.trim();
+        name && send2({ type: "createGroup", name, colour: nextGroupColour(c.state), nodeIds: ids });
+      }
+    });
+    for (let g2 of Object.values(c.state.groups))
+      ids.every((id) => g2.nodeIds.includes(id)) || items.push({ label: `Add to group: ${g2.name}`, action: () => {
+        send2({ type: "addToGroup", groupId: g2.id, nodeIds: ids });
+      } });
+    for (let g2 of Object.values(c.state.groups))
+      ids.some((id) => g2.nodeIds.includes(id)) && items.push({ label: `Remove from group: ${g2.name}`, action: () => {
+        send2({ type: "removeFromGroup", groupId: g2.id, nodeIds: ids });
+      } });
+    let hosts = ignoreCandidates(c.state, ids, c.ignoredSites);
+    return hosts.length && items.push("separator", {
+      label: hosts.length === 1 ? `Ignore ${hosts[0]}` : `Ignore ${hosts.length} sites`,
+      action: () => {
+        send2({ type: "setSettings", settings: { ignoredSites: [...c.ignoredSites, ...hosts] } }), showToast(`Ignoring ${hosts.join(", ")} from now on. Pages already in the tree stay; manage the list in Settings.`);
+      }
+    }), items;
+  }
+  function attachInteractions(canvas2, getCtx, send2, onSelectionChange) {
+    let viewport2 = canvas2.parentElement, drag = null, moved = !1, canvasPoint = (e) => {
+      let r = canvas2.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }, nodeDrag = null, swallowClick = !1, dropLift = (d) => {
+      d.el.classList.remove("dragging"), d.el.style.transform = "", d.indicator?.remove(), d.indicator = null;
+    };
+    viewport2.addEventListener("mousedown", (e) => {
+      let t = e.target, card = t.closest(".node");
+      card && e.button === 0 && !e.ctrlKey && !e.metaKey && !t.closest(".star") && (nodeDrag = { id: card.dataset.id, x: e.clientX, y: e.clientY, el: card, moved: !1, cancelled: !1, indicator: null, target: null });
+    }), window.addEventListener("mousemove", (e) => {
+      let d = nodeDrag;
+      if (!d || d.cancelled) return;
+      let dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.moved && Math.abs(dx) + Math.abs(dy) <= DRAG_THRESHOLD) return;
+      d.moved = !0, d.el.classList.add("dragging"), d.el.style.transform = `translate(${dx}px, ${dy}px)`;
+      let c = getCtx();
+      if (d.target = reorderTarget(c.state, c.layout, c.opts.nodeW, d.id, canvasPoint(e).x), !d.target) {
+        d.indicator?.remove(), d.indicator = null;
+        return;
+      }
+      let at = c.layout.pos[d.target.targetId], noted = c.showNotes && c.state.nodes[d.target.targetId].note?.trim(), slot = c.opts.nodeW + (noted ? NOTE_BOX.gap + NOTE_BOX.w : 0);
+      d.indicator ??= Object.assign(document.createElement("div"), { className: "drop-indicator" }), d.indicator.isConnected || canvas2.append(d.indicator), Object.assign(d.indicator.style, {
+        left: `${d.target.position === "before" ? at.x - c.opts.gapX / 2 - 2 : at.x + slot + c.opts.gapX / 2 - 2}px`,
+        top: `${at.y - 4}px`,
+        height: `${c.opts.nodeH + 8}px`
+      });
+    }), window.addEventListener("mouseup", () => {
+      let d = nodeDrag;
+      d && (nodeDrag = null, dropLift(d), d.moved && (swallowClick = !0, setTimeout(() => {
+        swallowClick = !1;
+      }, 0), !d.cancelled && d.target && send2({ type: "move", id: d.id, ...d.target })));
+    }), window.addEventListener("keydown", (e) => {
+      e.key === "Escape" && nodeDrag && !nodeDrag.cancelled && (nodeDrag.cancelled = !0, dropLift(nodeDrag));
+    }), canvas2.addEventListener("click", (e) => {
+      swallowClick && (swallowClick = !1, e.stopPropagation(), e.preventDefault());
+    }, !0), viewport2.addEventListener("mousedown", (e) => {
+      if (!(e.button !== 0 || e.target.closest(".node, .note-box"))) {
+        if (moved = !1, e.ctrlKey || e.metaKey) {
+          let p = canvasPoint(e), el = document.createElement("div");
+          el.className = "selection-box", canvas2.append(el), drag = { kind: "box", x: p.x, y: p.y, el };
+        } else
+          drag = { kind: "pan", x: e.clientX, y: e.clientY, left: viewport2.scrollLeft, top: viewport2.scrollTop }, viewport2.classList.add("panning");
+        e.preventDefault();
+      }
+    }), window.addEventListener("mousemove", (e) => {
+      if (drag)
+        if (drag.kind === "pan") {
+          let dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+          Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD && (moved = !0), viewport2.scrollLeft = drag.left - dx, viewport2.scrollTop = drag.top - dy;
+        } else {
+          let p = canvasPoint(e);
+          Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y) > DRAG_THRESHOLD && (moved = !0), Object.assign(drag.el.style, {
+            left: `${Math.min(p.x, drag.x)}px`,
+            top: `${Math.min(p.y, drag.y)}px`,
+            width: `${Math.abs(p.x - drag.x)}px`,
+            height: `${Math.abs(p.y - drag.y)}px`
+          });
+        }
+    }), window.addEventListener("mouseup", (e) => {
+      if (!drag) return;
+      let c = getCtx();
+      if (drag.kind === "box") {
+        let p = canvasPoint(e);
+        drag.el.remove(), c.selected.clear(), moved && nodesInRect(c.layout, c.opts.nodeW, c.opts.nodeH, { x1: drag.x, y1: drag.y, x2: p.x, y2: p.y }).forEach((id) => c.selected.add(id)), onSelectionChange();
+      } else
+        viewport2.classList.remove("panning"), !moved && c.selected.size && (c.selected.clear(), onSelectionChange());
+      drag = null;
+    }), canvas2.addEventListener("click", (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      let el = e.target.closest(".node");
+      if (!el || e.target.closest(".star")) return;
+      let { selected } = getCtx(), id = el.dataset.id;
+      selected.delete(id) || selected.add(id), onSelectionChange();
+    }), viewport2.addEventListener("contextmenu", (e) => {
+      let el = e.target.closest(".node");
+      if (!el) return;
+      e.preventDefault();
+      let c = getCtx(), id = el.dataset.id;
+      c.selected.has(id) || (c.selected.clear(), c.selected.add(id), onSelectionChange()), showMenu(e.clientX, e.clientY, buildMenu([...c.selected], getCtx(), send2, onSelectionChange));
+    });
+  }
+
+  // src/page/appearance.ts
+  var COMPACT_LAYOUT = { nodeW: 224, nodeH: 44, gapX: 18, gapY: 52 }, layoutOptsFor = (s) => s.compactCards ? COMPACT_LAYOUT : DEFAULT_LAYOUT;
+  function appearanceClasses(s) {
+    let out = [];
+    return s.compactCards && out.push("compact"), s.showSiteName || out.push("hide-site"), s.showStatusDots || out.push("hide-dots"), s.dashedConnectors || out.push("solid-lines"), s.showGroupOutlines || out.push("hide-groups"), s.showNoteBoxes || out.push("hide-notes"), out;
+  }
+
+  // src/page/render.ts
+  var SVG_NS = "http://www.w3.org/2000/svg", GROUP_PAD = 8, FALLBACK_COLOUR = "#5aaeff", DOT_GAP = 12;
+  function hostOf(url) {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return "";
+    }
+  }
+  function hueOf(host) {
+    let h = 0;
+    for (let c of host) h = (h * 31 + c.charCodeAt(0)) % 360;
+    return h;
+  }
+  function makeTile(n) {
+    let host = hostOf(n.url), tile = document.createElement("span");
+    tile.className = "tile", tile.style.setProperty("--h", String(hueOf(host)));
+    let fallback = () => {
+      let f = document.createElement("span");
+      return f.className = "ico-fallback", f.textContent = (host[0] ?? "\xB7").toUpperCase(), f;
+    };
+    if (!n.favIconUrl)
+      return tile.append(fallback()), tile;
+    let img = document.createElement("img");
+    return img.className = "ico", img.alt = "", img.src = n.favIconUrl, img.addEventListener("error", () => img.replaceWith(fallback()), { once: !0 }), tile.append(img), tile;
+  }
+  var ICONS = {
+    star: "M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z",
+    note: "M4 20h4l10.5-10.5a2.1 2.1 0 000-3L17 5a2.1 2.1 0 00-3 0L4 15.5V20z"
+  };
+  function svgIcon(path) {
+    let svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"), svg.setAttribute("width", "16"), svg.setAttribute("height", "16"), svg.setAttribute("aria-hidden", "true");
+    let p = document.createElementNS(SVG_NS, "path");
+    return p.setAttribute("d", path), svg.append(p), svg;
+  }
+  function describe(n, text, groups) {
+    return [text, n.tabId === null ? "closed tab" : "open tab"].concat(n.favourite ? "favourite" : [], n.note ? "has a note" : [], groups.map((g2) => `in group ${g2}`)).join(", ");
+  }
+  function makeNode(n, x, y, ui, groups, opts) {
+    let el = document.createElement("div");
+    el.className = ["node", n.tabId === null ? "hollow" : "open"].concat(ui.selected.has(n.id) ? "selected" : [], n.favourite ? "favourite" : []).concat(ui.matches && !ui.matches.has(n.id) ? "dim" : [], ui.matches?.has(n.id) ? "match" : []).join(" "), el.dataset.id = n.id, el.style.left = `${x}px`, el.style.top = `${y}px`, el.style.width = `${opts.nodeW}px`, el.style.height = `${opts.nodeH}px`;
+    let text = document.createElement("span");
+    text.className = "label", text.textContent = displayName(n);
+    let sub = document.createElement("span");
+    sub.className = "sub", sub.textContent = hostOf(n.url);
+    let words = document.createElement("span");
+    words.className = "words", words.append(text, sub);
+    let main = document.createElement("button");
+    if (main.type = "button", main.className = "node-main", main.title = n.url, main.setAttribute("aria-label", describe(n, text.textContent, groups)), main.append(makeTile(n), words), n.note) {
+      let note = document.createElement("span");
+      note.className = "note-mark", note.title = n.note, note.append(svgIcon(ICONS.note)), main.append(note);
+    }
+    let star = document.createElement("button");
+    return star.type = "button", star.className = "star", star.setAttribute("aria-label", "Favourite"), star.setAttribute("aria-pressed", String(n.favourite)), star.append(svgIcon(ICONS.star)), el.append(main, star), el;
+  }
+  function makeConnectors(s, layout, opts) {
+    let { nodeW, nodeH } = opts, svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("class", "connectors"), svg.setAttribute("width", String(layout.width)), svg.setAttribute("height", String(layout.height));
+    for (let n of Object.values(s.nodes)) {
+      let to = layout.pos[n.id];
+      if (!to) continue;
+      let x2 = to.x + nodeW / 2, y2 = to.y - DOT_GAP, from = n.parentId ? layout.pos[n.parentId] : void 0;
+      if (from) {
+        let x1 = from.x + nodeW / 2, y1 = from.y + nodeH, mid = (y1 + y2) / 2, path = document.createElementNS(SVG_NS, "path");
+        path.setAttribute("d", `M${x1} ${y1} C${x1} ${mid} ${x2} ${mid} ${x2} ${y2}`), path.setAttribute("class", n.tabId === null ? "link hollow" : "link open"), svg.append(path);
+      }
+      let dot = document.createElementNS(SVG_NS, "circle");
+      dot.setAttribute("class", n.tabId === null ? "dot hollow" : "dot open"), dot.setAttribute("cx", String(x2)), dot.setAttribute("cy", String(y2)), dot.setAttribute("r", "5"), svg.append(dot);
+    }
+    return svg;
+  }
+  function makeGroupBoxes(s, layout, opts) {
+    let { nodeW, nodeH } = opts, boxes = [], layers = /* @__PURE__ */ new Map();
+    for (let g2 of Object.values(s.groups))
+      for (let id of g2.nodeIds) {
+        let p = layout.pos[id];
+        if (!p) continue;
+        let layer = layers.get(id) ?? 0;
+        layers.set(id, layer + 1);
+        let pad = GROUP_PAD + layer * 4, colour = isHexColour(g2.colour) ? g2.colour : FALLBACK_COLOUR, box = document.createElement("div");
+        box.className = "group-box", box.style.cssText = `left:${p.x - pad}px;top:${p.y - pad}px;width:${nodeW + 2 * pad}px;height:${nodeH + 2 * pad}px;border-color:${colour}`;
+        let tag = document.createElement("span");
+        tag.className = "group-label", tag.style.background = colour, tag.textContent = g2.name, box.append(tag), boxes.push(box);
+      }
+    return boxes;
+  }
+  function makeNoteBox(n, at, ui, opts) {
+    let box = document.createElement("button");
+    return box.type = "button", box.className = ui.matches && !ui.matches.has(n.id) ? "note-box dim" : "note-box", box.dataset.id = n.id, box.title = "Click to edit this note", box.style.left = `${at.x + opts.nodeW + NOTE_BOX.gap}px`, box.style.top = `${at.y}px`, box.style.width = `${NOTE_BOX.w}px`, box.style.maxHeight = `${opts.nodeH + opts.gapY - 12}px`, box.textContent = n.note ?? "", box;
+  }
+  function groupNamesByNode(s) {
+    let out = /* @__PURE__ */ new Map();
+    for (let g2 of Object.values(s.groups))
+      for (let id of g2.nodeIds) out.set(id, [...out.get(id) ?? [], g2.name]);
+    return out;
+  }
+  function renderForest(container, s, layout, ui, opts = DEFAULT_LAYOUT) {
+    container.style.width = `${layout.width}px`, container.style.height = `${layout.height}px`;
+    let groups = groupNamesByNode(s), nodes = Object.values(s.nodes).filter((n) => layout.pos[n.id]).map((n) => makeNode(n, layout.pos[n.id].x, layout.pos[n.id].y, ui, groups.get(n.id) ?? [], opts)), noteBoxes = ui.showNotes ? Object.values(s.nodes).filter((n) => layout.pos[n.id] && n.note?.trim()).map((n) => makeNoteBox(n, layout.pos[n.id], ui, opts)) : [];
+    container.replaceChildren(...makeGroupBoxes(s, layout, opts), makeConnectors(s, layout, opts), ...nodes, ...noteBoxes);
+  }
+
+  // src/page/theme.ts
+  var KEY = "dashtree-theme";
+  function effectiveTheme(setting, systemDark) {
+    return setting === "system" ? systemDark ? "dark" : "light" : setting;
+  }
+  var systemPrefersDark = () => typeof window < "u" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  function setAttribute(setting) {
+    let root = document.documentElement;
+    setting === "system" ? root.removeAttribute("data-theme") : root.dataset.theme = setting;
+  }
+  function applyTheme(setting) {
+    setAttribute(setting);
+    try {
+      localStorage.setItem(KEY, setting);
+    } catch {
+    }
+  }
+  function applyCachedTheme() {
+    try {
+      let cached = localStorage.getItem(KEY);
+      (cached === "light" || cached === "dark") && setAttribute(cached);
+    } catch {
+    }
+  }
+  var GLOW_KEY = "histo-tree-glow", DEFAULT_GLOW = "#1f9d84";
+  function setGlowProperty(colour) {
+    let root = document.documentElement;
+    isHexColour(colour) ? root.style.setProperty("--glow", colour) : root.style.removeProperty("--glow");
+  }
+  function applyGlow(colour) {
+    setGlowProperty(colour);
+    try {
+      localStorage.setItem(GLOW_KEY, isHexColour(colour) ? colour : "");
+    } catch {
+    }
+  }
+  function applyCachedGlow() {
+    try {
+      let cached = localStorage.getItem(GLOW_KEY);
+      cached && setGlowProperty(cached);
+    } catch {
+    }
+  }
+
+  // src/page/groups-menu.ts
+  var POPOVER_EVENT = "histo:popover-open";
+  function renderGroupsMenu(el, api) {
+    let state2 = { nodes: {}, groups: {} }, focusId = null, toggle = document.createElement("button");
+    toggle.type = "button", toggle.className = "groups-toggle", el.insertBefore(toggle, el.querySelector(".clear-hollow"));
+    let popover = document.createElement("div");
+    popover.className = "popover groups-popover", popover.id = "groups-popover", popover.setAttribute("role", "dialog"), popover.setAttribute("aria-label", "Groups"), popover.hidden = !0, toggle.setAttribute("aria-expanded", "false"), toggle.setAttribute("aria-controls", popover.id);
+    let newGroup = document.createElement("button");
+    newGroup.type = "button", newGroup.className = "new-group", newGroup.textContent = "New group from selection";
+    let refreshNewGroup = () => {
+      newGroup.disabled = api.getSelected().length === 0;
+    };
+    newGroup.addEventListener("click", () => {
+      let name = prompt("Name for the new group")?.trim();
+      name && api.send({ type: "createGroup", name, colour: nextGroupColour(state2), nodeIds: api.getSelected() });
+    });
+    let list = document.createElement("ul");
+    list.className = "group-list";
+    let empty2 = document.createElement("p");
+    empty2.className = "group-empty", empty2.textContent = "No groups yet. Select nodes with Ctrl+drag, then right-click and choose Create group\u2026", popover.append(newGroup, list, empty2), document.body.append(popover);
+    let setOpen = (open2) => {
+      popover.hidden = !open2, toggle.setAttribute("aria-expanded", String(open2)), open2 && (refreshNewGroup(), document.dispatchEvent(new CustomEvent(POPOVER_EVENT, { detail: popover.id })));
+    };
+    toggle.addEventListener("click", () => setOpen(!!popover.hidden)), document.addEventListener(POPOVER_EVENT, (e) => {
+      e.detail !== popover.id && setOpen(!1);
+    }), document.addEventListener("keydown", (e) => {
+      e.key === "Escape" && !popover.hidden && (setOpen(!1), toggle.focus());
+    });
+    let action = (text, label, onClick, pressed) => {
+      let b = document.createElement("button");
+      return b.type = "button", b.textContent = text, b.setAttribute("aria-label", label), pressed !== void 0 && b.setAttribute("aria-pressed", String(pressed)), b.addEventListener("click", onClick), b;
+    };
+    function renderRows() {
+      let groups = Object.values(state2.groups);
+      toggle.textContent = groups.length ? `Groups (${groups.length})` : "Groups", empty2.hidden = groups.length > 0, list.hidden = groups.length === 0, list.replaceChildren(...groups.map((g2) => {
+        let members = groupMembers(state2, g2.id), li = document.createElement("li");
+        li.className = "group-row", li.dataset.groupId = g2.id;
+        let colour = document.createElement("input");
+        colour.type = "color", colour.value = g2.colour, colour.setAttribute("aria-label", `Colour for ${g2.name}`), colour.addEventListener("change", () => {
+          api.send({ type: "recolourGroup", groupId: g2.id, colour: colour.value });
+        });
+        let name = document.createElement("span");
+        name.className = "group-name", name.textContent = g2.name;
+        let count = document.createElement("span");
+        count.className = "group-count", count.textContent = `${members.length} node${members.length === 1 ? "" : "s"}`;
+        let buttons = document.createElement("span");
+        return buttons.className = "group-actions", buttons.append(
+          action("Select", `Select members of ${g2.name}`, () => api.selectNodes(members)),
+          action("Focus", `Focus ${g2.name}`, () => api.setFocus(focusId === g2.id ? null : g2.id), focusId === g2.id),
+          action("Go to", `Go to ${g2.name}`, () => api.scrollTo(members)),
+          action("Rename", `Rename ${g2.name}`, () => {
+            let next = prompt("Group name", g2.name)?.trim();
+            next && api.send({ type: "renameGroup", groupId: g2.id, name: next });
+          }),
+          action("Delete", `Delete ${g2.name}`, () => {
+            (!api.confirmDelete() || confirm(`Delete the group "${g2.name}"? The pages stay in the tree.`)) && api.send({ type: "deleteGroup", groupId: g2.id });
+          })
+        ), li.append(colour, name, count, buttons), li;
+      }));
+    }
+    return {
+      update(s, focus) {
+        state2 = s, focusId = focus, renderRows(), refreshNewGroup();
+      }
+    };
+  }
+
+  // src/page/topbar.ts
+  var RECORDING = {
+    title: "Recording",
+    items: [
+      ["sameTabAddsNode", "Clicking a link in the same tab adds a new node (off: update the current node)"],
+      ["routeFragmentsAreSeparate", "Treat route changes after # as separate pages, such as Azure Portal blades (off: ignore them)"],
+      ["reuseEarlierPage", "Going back to an earlier page on the same path reuses its node instead of duplicating it"],
+      ["redirectsUpdateNode", "Redirects update the current node instead of adding a node"]
+    ]
+  }, CLEANUP = {
+    title: "Cleanup",
+    items: [
+      ["wipeHollowAfterRestart", "After a restart, wipe hollow nodes once a tab is opened (favourites are kept)"],
+      ["hollowOnTabClose", "When a tab closes, keep its node as a hollow node (off: remove it)"],
+      ["clearRemovesFavouriteChildren", "Clear hollow nodes also removes the hollow children of favourites"],
+      ["confirmBeforeDeleting", "Ask before deleting several nodes, deleting with children, or clearing hollow nodes"]
+    ]
+  }, APPEARANCE = {
+    title: "Appearance",
+    items: [
+      ["compactCards", "Compact cards"],
+      ["showSiteName", "Show the site name under each title"],
+      ["showStatusDots", "Show the open/closed dot above each card"],
+      ["dashedConnectors", "Dashed connector lines (off: solid)"],
+      ["showGroupOutlines", "Show group outlines and labels on the tree"],
+      ["showNoteBoxes", "Show notes in a box beside each node"]
+    ]
+  }, SVG_NS2 = "http://www.w3.org/2000/svg", SUN = "M12 7a5 5 0 100 10 5 5 0 000-10zM12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4", MOON = "M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z";
+  function icon2(path, cls) {
+    let svg = document.createElementNS(SVG_NS2, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"), svg.setAttribute("width", "18"), svg.setAttribute("height", "18"), svg.setAttribute("aria-hidden", "true"), svg.setAttribute("class", cls);
+    let p = document.createElementNS(SVG_NS2, "path");
+    return p.setAttribute("d", path), svg.append(p), svg;
+  }
+  function parseSites(text) {
+    return [...new Set(text.split(`
+`).map(normalizeSite).filter(Boolean))];
+  }
+  function renderTopBar(el, settings2, send2, onQuery) {
+    let current2 = settings2, search = document.createElement("input");
+    search.type = "search", search.placeholder = "Search tabs, URLs and notes\u2026", search.setAttribute("aria-label", "Search tabs, URLs and notes"), search.addEventListener("input", () => onQuery(search.value));
+    let spacer = document.createElement("span");
+    spacer.className = "spacer";
+    let shown = () => effectiveTheme(current2.theme, systemPrefersDark()), toggle = document.createElement("button");
+    toggle.type = "button", toggle.className = "theme-toggle", toggle.setAttribute("role", "switch"), toggle.setAttribute("aria-label", "Dark mode"), toggle.append(icon2(SUN, "sun"), icon2(MOON, "moon")), toggle.addEventListener("click", () => {
+      send2({ type: "setSettings", settings: { theme: shown() === "dark" ? "light" : "dark" } });
+    });
+    let clear = document.createElement("button");
+    clear.className = "clear-hollow", clear.textContent = "Clear hollow nodes", clear.title = "Remove every hollow node except favourites (the Cleanup settings say whether their hollow children go too)", clear.addEventListener("click", () => {
+      let extra = current2.clearRemovesFavouriteChildren ? " Hollow children of favourites will be removed too." : "";
+      (!current2.confirmBeforeDeleting || confirm(`Remove all hollow nodes except favourites themselves?${extra}`)) && send2({ type: "clearHollow" });
+    });
+    let gear = document.createElement("button");
+    gear.textContent = "Settings";
+    let popover = document.createElement("div");
+    popover.className = "popover", popover.id = "settings-popover", popover.setAttribute("role", "dialog"), popover.setAttribute("aria-label", "Settings"), popover.hidden = !0, gear.setAttribute("aria-expanded", "false"), gear.setAttribute("aria-controls", popover.id);
+    let setOpen = (open2) => {
+      popover.hidden = !open2, gear.setAttribute("aria-expanded", String(open2)), open2 && document.dispatchEvent(new CustomEvent("histo:popover-open", { detail: popover.id }));
+    };
+    document.addEventListener("histo:popover-open", (e) => {
+      e.detail !== popover.id && setOpen(!1);
+    }), gear.addEventListener("click", () => setOpen(!!popover.hidden)), document.addEventListener("keydown", (e) => {
+      e.key === "Escape" && !popover.hidden && (setOpen(!1), gear.focus());
+    });
+    let heading = (text) => {
+      let h = document.createElement("h2");
+      return h.textContent = text, h;
+    }, boxes = /* @__PURE__ */ new Map(), checkboxes = (section) => {
+      let rows = [];
+      for (let [key, text] of section.items) {
+        let row = document.createElement("label"), box = document.createElement("input");
+        box.type = "checkbox", box.addEventListener("change", () => {
+          send2({ type: "setSettings", settings: { [key]: box.checked } });
+        }), row.append(box, ` ${text}`), rows.push(row), boxes.set(key, box);
+      }
+      return rows;
+    }, themeRow = document.createElement("label");
+    themeRow.className = "field";
+    let themeSelect = document.createElement("select");
+    themeSelect.setAttribute("aria-label", "Theme");
+    for (let [value, text] of [["system", "System"], ["light", "Light"], ["dark", "Dark"]]) {
+      let o = document.createElement("option");
+      o.value = value, o.textContent = text, themeSelect.append(o);
+    }
+    themeSelect.addEventListener("change", () => {
+      send2({ type: "setSettings", settings: { theme: themeSelect.value } });
+    }), themeRow.append("Theme ", themeSelect);
+    let glowRow = document.createElement("div");
+    glowRow.className = "field";
+    let glowLabel = document.createElement("label");
+    glowLabel.textContent = "Glow colour ";
+    let glowPicker = document.createElement("input");
+    glowPicker.type = "color", glowPicker.setAttribute("aria-label", "Glow colour"), glowPicker.addEventListener("change", () => {
+      send2({ type: "setSettings", settings: { glowColour: glowPicker.value } });
+    }), glowLabel.append(glowPicker);
+    let glowReset = document.createElement("button");
+    glowReset.type = "button", glowReset.textContent = "Reset glow", glowReset.addEventListener("click", () => {
+      send2({ type: "setSettings", settings: { glowColour: "" } });
+    }), glowRow.append(glowLabel, glowReset);
+    let sitesRow = document.createElement("label");
+    sitesRow.className = "field stacked";
+    let sites = document.createElement("textarea");
+    sites.rows = 4, sites.spellcheck = !1, sites.placeholder = `bank.example
+mail.example.com`, sites.setAttribute("aria-label", "Ignored sites"), sites.addEventListener("change", () => {
+      send2({ type: "setSettings", settings: { ignoredSites: parseSites(sites.value) } });
+    }), sitesRow.append("Never recorded. One site per line; subdomains are included.", sites), popover.append(
+      heading(RECORDING.title),
+      ...checkboxes(RECORDING),
+      heading(CLEANUP.title),
+      ...checkboxes(CLEANUP),
+      heading(APPEARANCE.title),
+      themeRow,
+      glowRow,
+      ...checkboxes(APPEARANCE),
+      heading("Ignored sites"),
+      sitesRow
+    ), el.append(search, spacer, toggle, clear, gear), document.body.append(popover);
+    let bar = {
+      update(s) {
+        current2 = s, toggle.setAttribute("aria-checked", String(shown() === "dark"));
+        for (let [key, box] of boxes) box.checked = s[key];
+        themeSelect.value = s.theme, glowPicker.value = s.glowColour || DEFAULT_GLOW, glowReset.disabled = !s.glowColour, document.activeElement !== sites && (sites.value = s.ignoredSites.join(`
+`));
+      }
+    };
+    return bar.update(settings2), bar;
+  }
+
+  // src/page/main.ts
+  applyCachedTheme();
+  applyCachedGlow();
+  var ctx = {
+    state: EMPTY_STATE,
+    settings: DEFAULT_SETTINGS,
+    layout: layoutForest(EMPTY_STATE),
+    opts: DEFAULT_LAYOUT,
+    get confirmDelete() {
+      return this.settings.confirmBeforeDeleting;
+    },
+    get ignoredSites() {
+      return this.settings.ignoredSites;
+    },
+    get showNotes() {
+      return this.settings.showNoteBoxes;
+    },
+    selected: /* @__PURE__ */ new Set(),
+    matches: null,
+    focusGroup: null
+  }, send = (c) => ext.runtime.sendMessage(c), canvas = document.getElementById("canvas"), empty = document.getElementById("empty");
+  function draw() {
+    for (let id of ctx.selected) ctx.state.nodes[id] || ctx.selected.delete(id);
+    ctx.opts = layoutOptsFor(ctx.settings), ctx.layout = layoutForest(ctx.state, ctx.opts, ctx.settings.showNoteBoxes), canvas.className = appearanceClasses(ctx.settings).join(" "), renderForest(
+      canvas,
+      ctx.state,
+      ctx.layout,
+      { selected: ctx.selected, matches: ctx.matches, showNotes: ctx.settings.showNoteBoxes },
+      ctx.opts
+    ), empty.hidden = Object.keys(ctx.state.nodes).length > 0;
+  }
+  var query = "", topbar = renderTopBar(document.getElementById("topbar"), ctx.settings, send, (q) => {
+    query = q, applyQuery();
+  });
+  function applyQuery() {
+    ctx.matches = computeMatches(ctx.state, query, ctx.focusGroup), draw();
+  }
+  var viewport = document.getElementById("viewport");
+  function scrollToNodes(ids) {
+    let spots = ids.map((id) => ctx.layout.pos[id]).filter(Boolean);
+    if (!spots.length) return;
+    let reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    viewport.scrollTo({
+      left: Math.max(0, Math.min(...spots.map((p) => p.x)) - 60),
+      top: Math.max(0, Math.min(...spots.map((p) => p.y)) - 60),
+      behavior: reduce ? "auto" : "smooth"
+    });
+  }
+  var groupsMenu = renderGroupsMenu(document.getElementById("topbar"), {
+    send,
+    getSelected: () => [...ctx.selected],
+    selectNodes: (ids) => {
+      ctx.selected.clear(), ids.forEach((id) => ctx.selected.add(id)), draw();
+    },
+    setFocus: (id) => {
+      ctx.focusGroup = id, applyQuery(), groupsMenu.update(ctx.state, ctx.focusGroup);
+    },
+    scrollTo: scrollToNodes,
+    confirmDelete: () => ctx.settings.confirmBeforeDeleting
+  }), latestRequest = 0;
+  async function refresh() {
+    let request = ++latestRequest, reply = await send({ type: "getState" });
+    !reply || reply.error || !reply.state || request !== latestRequest || (ctx.state = reply.state, ctx.settings = reply.settings, applyTheme(ctx.settings.theme), applyGlow(ctx.settings.glowColour), topbar.update(ctx.settings), ctx.focusGroup && !ctx.state.groups[ctx.focusGroup] && (ctx.focusGroup = null), groupsMenu.update(ctx.state, ctx.focusGroup), applyQuery());
+  }
+  canvas.addEventListener("click", (e) => {
+    let target = e.target, noteBox = target.closest(".note-box");
+    if (noteBox) {
+      let node = ctx.state.nodes[noteBox.dataset.id];
+      node && editNote(node.id, node.note, send);
+      return;
+    }
+    let el = target.closest(".node");
+    if (!el) return;
+    let id = el.dataset.id;
+    if (target.closest(".star")) {
+      send({ type: "setFavourite", id, value: !ctx.state.nodes[id].favourite });
+      return;
+    }
+    e.ctrlKey || e.metaKey || send({ type: "activate", id });
+  });
+  attachInteractions(canvas, () => ctx, send, draw);
+  ext.runtime.onMessage.addListener((m) => {
+    m?.type === CHANGED && refresh();
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>

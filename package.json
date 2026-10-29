@@ -7,6 +7,7 @@
     "build": "node build.mjs",
     "build:chromium": "node build.mjs chromium",
     "build:firefox": "node build.mjs firefox",
+    "site": "node tools/site.mjs",
     "lint:firefox": "web-ext lint --source-dir dist-firefox",
     "package": "node build.mjs && web-ext build --source-dir dist --artifacts-dir packages --filename histo-tree-chromium-{version}.zip --overwrite-dest && web-ext build --source-dir dist-firefox --artifacts-dir packages --filename histo-tree-firefox-{version}.zip --overwrite-dest",
     "icons": "node tools/make-icons.mjs",

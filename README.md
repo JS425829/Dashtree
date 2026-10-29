@@ -58,6 +58,19 @@ node tools/smoke.mjs "C:/Program Files/Google/Chrome/Application/chrome.exe"    
 Edge loads the extension with `--load-extension`. Branded Chrome ignores that switch, so Chrome is driven over the
 debugging protocol's pipe (`pipe`). There is no equivalent runner for Firefox here.
 
+## Website (GitHub Pages)
+
+`docs/index.html` is a self-contained showcase page, with a live demo (`docs/demo.html`) that is the real interface
+running on sample data. It makes no outside requests.
+
+To publish it: on GitHub open the repository's *Settings → Pages*, set *Source* to *Deploy from a branch*, choose the
+`main` branch and the `/docs` folder, and save. The site appears at `https://<your-user>.github.io/<repo-name>/`.
+
+- `npm run site` rebuilds the demo (`docs/demo.html`) after you change the interface.
+- The hero screenshots in `docs/img/` are captures of that demo (light and dark).
+- Everything else in `docs/` (the design notes under `docs/superpowers/`) is published too, as plain files.
+- The page links to `https://github.com/JS425829/Dashtree`; update it in `docs/index.html` if the repository is renamed.
+
 ## Other tools
 
 - `node tools/preview.mjs` builds `.superpowers/preview/preview.html`: the real page code with sample data, openable

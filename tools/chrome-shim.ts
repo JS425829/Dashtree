@@ -10,9 +10,12 @@ let state: TreeState = EMPTY_STATE;
 let settings = { ...DEFAULT_SETTINGS };
 let nextTab = 100;
 
-const icon = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+// replaced at build time (tools/demo.mjs): with no favicon the card shows a lettered tile instead
+declare const __FAVICONS__: boolean;
+const icon = (domain: string) => (__FAVICONS__ ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : '');
+let clock = 1000; // fixed creation times, so siblings always appear in the order they are listed below
 function add(parentId: NodeId | null, domain: string, path: string, title: string, tabId: number | null): NodeId {
-  const r = addNode(state, { parentId, url: `https://${domain}${path}`, title, favIconUrl: icon(domain), tabId });
+  const r = addNode(state, { parentId, url: `https://${domain}${path}`, title, favIconUrl: icon(domain), tabId }, clock++);
   state = r.state;
   return r.id;
 }
